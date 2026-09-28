@@ -308,10 +308,10 @@ class LoginInstitucionTest extends IntegracionTest {
         Long colegio = crearInstitucion("login-asignar");
         Long admin = crearUsuario(colegio, "880", Rol.ADMIN, ENCODER.encode("880"), false);
         OWNER.update("""
-                INSERT INTO personal (per_ins_id, per_usu_id, per_tipo_doc, per_nro_doc, per_nombres, per_apellidos)
-                VALUES (?, ?, 'CC', '880', 'Admin', 'Uno')""", colegio, admin);
+                INSERT INTO personal (per_ins_id, per_usu_id, per_codigo, per_tipo_doc, per_nro_doc, per_nombres, per_apellidos)
+                VALUES (?, ?, 'codigoAdmin1', 'CC', '880', 'Admin', 'Uno')""", colegio, admin);
 
-        mvc.perform(put("/api/v1/superadmin/instituciones/" + colegio + "/administradores/" + admin + "/contrasena")
+        mvc.perform(put("/api/v1/superadmin/instituciones/login-asignar/administradores/codigoAdmin1/contrasena")
                         .header("Authorization", sa)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"nueva\":\"clave-del-admin\"}"))
                 .andExpect(status().isOk());

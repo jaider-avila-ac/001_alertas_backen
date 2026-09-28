@@ -54,66 +54,66 @@ public class InstitucionController {
         return institucionService.crear(request);
     }
 
-    @GetMapping("/{id}")
-    public InstitucionResponse buscar(@PathVariable Long id) {
-        return institucionService.buscar(id);
+    @GetMapping("/{slug}")
+    public InstitucionResponse buscar(@PathVariable String slug) {
+        return institucionService.buscar(slug);
     }
 
-    @PutMapping("/{id}")
-    public InstitucionResponse actualizar(@PathVariable Long id, @Valid @RequestBody InstitucionDatosRequest request) {
-        return institucionService.actualizar(id, request);
+    @PutMapping("/{slug}")
+    public InstitucionResponse actualizar(@PathVariable String slug, @Valid @RequestBody InstitucionDatosRequest request) {
+        return institucionService.actualizar(slug, request);
     }
 
-    @PatchMapping("/{id}/inactivar")
-    public InstitucionResponse inactivar(@PathVariable Long id, @Valid @RequestBody InactivarInstitucionRequest request) {
-        return institucionService.inactivar(id, request.motivo());
+    @PatchMapping("/{slug}/inactivar")
+    public InstitucionResponse inactivar(@PathVariable String slug, @Valid @RequestBody InactivarInstitucionRequest request) {
+        return institucionService.inactivar(slug, request.motivo());
     }
 
-    @PatchMapping("/{id}/activar")
-    public InstitucionResponse activar(@PathVariable Long id) {
-        return institucionService.activar(id);
+    @PatchMapping("/{slug}/activar")
+    public InstitucionResponse activar(@PathVariable String slug) {
+        return institucionService.activar(slug);
     }
 
-    @PatchMapping("/{id}/sms")
-    public InstitucionResponse cambiarSms(@PathVariable Long id, @Valid @RequestBody CambiarActivoRequest request) {
-        return institucionService.cambiarSms(id, request.activo());
+    @PatchMapping("/{slug}/sms")
+    public InstitucionResponse cambiarSms(@PathVariable String slug, @Valid @RequestBody CambiarActivoRequest request) {
+        return institucionService.cambiarSms(slug, request.activo());
     }
 
     // ---- administradores de la institucion ----
 
-    @GetMapping("/{id}/administradores")
-    public List<AdministradorResponse> listarAdministradores(@PathVariable Long id) {
-        return institucionService.listarAdministradores(id);
+    @GetMapping("/{slug}/administradores")
+    public List<AdministradorResponse> listarAdministradores(@PathVariable String slug) {
+        return institucionService.listarAdministradores(slug);
     }
 
-    @PostMapping("/{id}/administradores")
+    @PostMapping("/{slug}/administradores")
     @ResponseStatus(HttpStatus.CREATED)
     @Idempotente
-    public AdministradorResponse crearAdministrador(@PathVariable Long id, @Valid @RequestBody AdministradorRequest request) {
-        return institucionService.crearAdministrador(id, request);
+    public AdministradorResponse crearAdministrador(@PathVariable String slug, @Valid @RequestBody AdministradorRequest request) {
+        return institucionService.crearAdministrador(slug, request);
     }
 
-    @PostMapping("/{id}/administradores/{usuarioId}/restablecer-contrasena")
-    public AdministradorResponse restablecerContrasena(@PathVariable Long id, @PathVariable Long usuarioId) {
-        return institucionService.restablecerContrasenaAdministrador(id, usuarioId);
+    @PostMapping("/{slug}/administradores/{codigo}/restablecer-contrasena")
+    public AdministradorResponse restablecerContrasena(@PathVariable String slug, @PathVariable String codigo) {
+        return institucionService.restablecerContrasenaAdministrador(slug, codigo);
     }
 
     // el administrador no puede cambiar su propia contrasena, se la asigna el superadmin
-    @PutMapping("/{id}/administradores/{usuarioId}/contrasena")
+    @PutMapping("/{slug}/administradores/{codigo}/contrasena")
     public AdministradorResponse asignarContrasena(
-            @PathVariable Long id,
-            @PathVariable Long usuarioId,
+            @PathVariable String slug,
+            @PathVariable String codigo,
             @Valid @RequestBody AsignarContrasenaRequest request) {
 
-        return institucionService.asignarContrasenaAdministrador(id, usuarioId, request.nueva());
+        return institucionService.asignarContrasenaAdministrador(slug, codigo, request.nueva());
     }
 
-    @PatchMapping("/{id}/administradores/{usuarioId}/estado")
+    @PatchMapping("/{slug}/administradores/{codigo}/estado")
     public AdministradorResponse cambiarEstadoAdministrador(
-            @PathVariable Long id,
-            @PathVariable Long usuarioId,
+            @PathVariable String slug,
+            @PathVariable String codigo,
             @Valid @RequestBody CambiarActivoRequest request) {
 
-        return institucionService.cambiarEstadoAdministrador(id, usuarioId, request.activo());
+        return institucionService.cambiarEstadoAdministrador(slug, codigo, request.activo());
     }
 }

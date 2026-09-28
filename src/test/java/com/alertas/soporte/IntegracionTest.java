@@ -81,6 +81,16 @@ public abstract class IntegracionTest {
         return "Bearer " + jwtService.generar(usuarioId, institucionId, slug, rol);
     }
 
+    // la api ya no devuelve ids, las pruebas los sacan de la bd para armar tokens
+    protected static Long idInstitucion(String slug) {
+        return OWNER.queryForObject("SELECT ins_id FROM instituciones WHERE ins_slug = ?", Long.class, slug);
+    }
+
+    protected static Long idUsuario(Long institucionId, String documento) {
+        return OWNER.queryForObject("SELECT usu_id FROM usuarios WHERE usu_ins_id = ? AND usu_usuario = ?",
+                Long.class, institucionId, documento);
+    }
+
     // usuario con contrasena = documento, como los crea el sistema. devuelve el id
     protected static Long crearUsuario(Long institucionId, String documento, Rol rol, String hash, boolean debeCambiar) {
         return OWNER.queryForObject("""

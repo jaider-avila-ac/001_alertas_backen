@@ -12,8 +12,11 @@ public interface PersonalService {
 
     List<AdministradorResponse> listarAdministradores();
 
-    // falla si el usuario no existe o no es administrador
-    AdministradorResponse buscarAdministrador(Long usuarioId);
+    // falla si no existe o no es administrador
+    AdministradorResponse buscarAdministrador(String codigo);
+
+    // id del usuario del administrador, para uso interno del backend (nunca va al front)
+    Long usuarioIdDeAdministrador(String codigo);
 
     // nombres de la persona de ese usuario, null si el usuario no es del personal
     NombrePersona buscarNombre(Long usuarioId);

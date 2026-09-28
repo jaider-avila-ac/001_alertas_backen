@@ -33,6 +33,10 @@ public class Personal {
     @Column(name = "per_ins_id", nullable = false, updatable = false)
     private Long institucionId;
 
+    // lo que ve el front en vez del id
+    @Column(name = "per_codigo", nullable = false, updatable = false, length = 16)
+    private String codigo;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "per_usu_id", nullable = false, updatable = false)
     private Usuario usuario;

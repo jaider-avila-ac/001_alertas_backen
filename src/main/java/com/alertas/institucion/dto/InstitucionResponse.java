@@ -3,8 +3,8 @@ package com.alertas.institucion.dto;
 import com.alertas.institucion.model.Institucion;
 import java.time.OffsetDateTime;
 
+// sin id: el superadmin y el front usan el slug
 public record InstitucionResponse(
-        Long id,
         String nombre,
         String slug,
         String enlace,
@@ -25,7 +25,6 @@ public record InstitucionResponse(
     public static InstitucionResponse desde(Institucion institucion, String urlFront) {
 
         return new InstitucionResponse(
-                institucion.getId(),
                 institucion.getNombre(),
                 institucion.getSlug(),
                 urlFront + "/" + institucion.getSlug(),

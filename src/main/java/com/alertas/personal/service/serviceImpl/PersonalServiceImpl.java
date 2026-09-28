@@ -7,6 +7,7 @@ import com.alertas.personal.dto.NombrePersona;
 import com.alertas.personal.model.Personal;
 import com.alertas.personal.repository.PersonalRepository;
 import com.alertas.personal.service.PersonalService;
+import com.alertas.shared.CodigoAleatorio;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.exception.ApiException;
 import com.alertas.usuario.model.Usuario;
@@ -46,6 +47,7 @@ public class PersonalServiceImpl implements PersonalService {
 
         Personal personal = new Personal();
         personal.setInstitucionId(institucionId);
+        personal.setCodigo(CodigoAleatorio.generar());
         personal.setUsuario(usuario);
         personal.setTipoDoc(request.tipoDoc());
         personal.setNroDoc(documento);
@@ -77,17 +79,27 @@ public class PersonalServiceImpl implements PersonalService {
 
     @Override
     @Transactional(readOnly = true)
-    public AdministradorResponse buscarAdministrador(Long usuarioId) {
+    public AdministradorResponse buscarAdministrador(String codigo) {
+        return AdministradorResponse.desde(obtenerAdministrador(codigo));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Long usuarioIdDeAdministrador(String codigo) {
+        return obtenerAdministrador(codigo).getUsuario().getId();
+    }
+
+    private Personal obtenerAdministrador(String codigo) {
 
         TenantSupport.requireTenant(em);
 
-        Personal personal = repository.buscarPorUsuario(usuarioId);
+        Personal personal = repository.buscarPorCodigo(codigo);
 
         if (personal == null || personal.getUsuario().getRol() != Rol.ADMIN) {
             throw ApiException.noEncontrado("El administrador no existe en esta institucion");
         }
 
-        return AdministradorResponse.desde(personal);
+        return personal;
     }
 
     @Override

@@ -143,7 +143,6 @@ public class AuthServiceImpl implements AuthService {
         boolean debeCambiar = usuario.isDebeCambiarContrasena() && usuario.getRol() != Rol.ADMIN;
 
         return new PerfilResponse(
-                usuario.getId(),
                 usuario.getUsuario(),
                 nombres,
                 apellidos,

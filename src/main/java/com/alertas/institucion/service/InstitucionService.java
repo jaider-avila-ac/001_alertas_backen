@@ -20,7 +20,7 @@ public interface InstitucionService {
 
     EstadoInstitucion estadoPorId(Long id);
 
-    // ---- superadmin ----
+    // ---- superadmin: la institucion va por su slug y los administradores por su codigo ----
 
     // crea la institucion con sus grados, anio lectivo, categorias y primer administrador
     CrearInstitucionResponse crear(CrearInstitucionRequest request);
@@ -28,25 +28,25 @@ public interface InstitucionService {
     // texto y activa pueden venir null (sin filtro)
     PageResponse<InstitucionResponse> listar(String texto, Boolean activa, int pagina, int tamanio);
 
-    InstitucionResponse buscar(Long id);
+    InstitucionResponse buscar(String slug);
 
-    InstitucionResponse actualizar(Long id, InstitucionDatosRequest request);
+    InstitucionResponse actualizar(String slug, InstitucionDatosRequest request);
 
-    InstitucionResponse inactivar(Long id, String motivo);
+    InstitucionResponse inactivar(String slug, String motivo);
 
-    InstitucionResponse activar(Long id);
+    InstitucionResponse activar(String slug);
 
-    InstitucionResponse cambiarSms(Long id, boolean activo);
+    InstitucionResponse cambiarSms(String slug, boolean activo);
 
-    List<AdministradorResponse> listarAdministradores(Long id);
+    List<AdministradorResponse> listarAdministradores(String slug);
 
-    AdministradorResponse crearAdministrador(Long id, AdministradorRequest request);
+    AdministradorResponse crearAdministrador(String slug, AdministradorRequest request);
 
-    AdministradorResponse restablecerContrasenaAdministrador(Long id, Long usuarioId);
+    AdministradorResponse restablecerContrasenaAdministrador(String slug, String codigo);
 
-    AdministradorResponse asignarContrasenaAdministrador(Long id, Long usuarioId, String nueva);
+    AdministradorResponse asignarContrasenaAdministrador(String slug, String codigo, String nueva);
 
-    AdministradorResponse cambiarEstadoAdministrador(Long id, Long usuarioId, boolean activo);
+    AdministradorResponse cambiarEstadoAdministrador(String slug, String codigo, boolean activo);
 
     // ---- usuarios de la institucion (tenant del contexto) ----
 

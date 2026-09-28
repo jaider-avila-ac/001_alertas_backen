@@ -4,7 +4,6 @@ import com.alertas.auth.model.Rol;
 import com.alertas.institucion.dto.InstitucionPublicaResponse;
 
 public record PerfilResponse(
-        Long usuarioId,
         String usuario,
         String nombres,
         String apellidos,

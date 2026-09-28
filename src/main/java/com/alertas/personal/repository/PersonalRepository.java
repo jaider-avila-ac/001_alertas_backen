@@ -16,4 +16,7 @@ public interface PersonalRepository extends JpaRepository<Personal, Long> {
 
     @Query("SELECT p FROM Personal p JOIN FETCH p.usuario u WHERE u.id = :usuarioId")
     Personal buscarPorUsuario(@Param("usuarioId") Long usuarioId);
+
+    @Query("SELECT p FROM Personal p JOIN FETCH p.usuario u WHERE p.codigo = :codigo")
+    Personal buscarPorCodigo(@Param("codigo") String codigo);
 }

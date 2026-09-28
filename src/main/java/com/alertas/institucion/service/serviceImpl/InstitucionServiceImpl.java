@@ -174,16 +174,16 @@ public class InstitucionServiceImpl implements InstitucionService {
 
     @Override
     @Transactional(readOnly = true)
-    public InstitucionResponse buscar(Long id) {
-        return InstitucionResponse.desde(obtener(id), urlFront);
+    public InstitucionResponse buscar(String slug) {
+        return InstitucionResponse.desde(obtenerPorSlug(slug), urlFront);
     }
 
     @Override
     @Transactional
-    public InstitucionResponse actualizar(Long id, InstitucionDatosRequest request) {
+    public InstitucionResponse actualizar(String slug, InstitucionDatosRequest request) {
 
-        Institucion institucion = obtener(id);
-        String slugAnterior = institucion.getSlug();
+        Institucion institucion = obtenerPorSlug(slug);
+        Long id = institucion.getId();
 
         validarSlug(request.slug(), id);
         validarCodigoDane(request.codigoDane(), id);
@@ -192,21 +192,22 @@ public class InstitucionServiceImpl implements InstitucionService {
 
         TenantSupport.usarInstitucion(em, id);
 
-        if (!slugAnterior.equals(institucion.getSlug())) {
+        if (!slug.equals(institucion.getSlug())) {
             bitacoraService.registrar("CAMBIAR_ENLACE", "institucion", id,
-                    "de " + slugAnterior + " a " + institucion.getSlug());
+                    "de " + slug + " a " + institucion.getSlug());
         }
 
-        olvidarCache(id, slugAnterior);
+        olvidarCache(id, slug);
         olvidarCache(id, institucion.getSlug());
         return InstitucionResponse.desde(institucion, urlFront);
     }
 
     @Override
     @Transactional
-    public InstitucionResponse inactivar(Long id, String motivo) {
+    public InstitucionResponse inactivar(String slug, String motivo) {
 
-        Institucion institucion = obtener(id);
+        Institucion institucion = obtenerPorSlug(slug);
+        Long id = institucion.getId();
 
         if (!institucion.isActiva()) {
             throw ApiException.conflicto("La institucion ya esta inhabilitada");
@@ -224,9 +225,10 @@ public class InstitucionServiceImpl implements InstitucionService {
 
     @Override
     @Transactional
-    public InstitucionResponse activar(Long id) {
+    public InstitucionResponse activar(String slug) {
 
-        Institucion institucion = obtener(id);
+        Institucion institucion = obtenerPorSlug(slug);
+        Long id = institucion.getId();
 
         if (institucion.isActiva()) {
             throw ApiException.conflicto("La institucion ya esta habilitada");
@@ -243,9 +245,10 @@ public class InstitucionServiceImpl implements InstitucionService {
 
     @Override
     @Transactional
-    public InstitucionResponse cambiarSms(Long id, boolean activo) {
+    public InstitucionResponse cambiarSms(String slug, boolean activo) {
 
-        Institucion institucion = obtener(id);
+        Institucion institucion = obtenerPorSlug(slug);
+        Long id = institucion.getId();
         institucion.setSmsActivo(activo);
 
         TenantSupport.usarInstitucion(em, id);
@@ -261,64 +264,61 @@ public class InstitucionServiceImpl implements InstitucionService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AdministradorResponse> listarAdministradores(Long id) {
+    public List<AdministradorResponse> listarAdministradores(String slug) {
 
-        obtener(id);
-        TenantSupport.usarInstitucion(em, id);
+        usarInstitucionPorSlug(slug);
         return personalService.listarAdministradores();
     }
 
     @Override
     @Transactional
-    public AdministradorResponse crearAdministrador(Long id, AdministradorRequest request) {
+    public AdministradorResponse crearAdministrador(String slug, AdministradorRequest request) {
 
-        obtener(id);
-        TenantSupport.usarInstitucion(em, id);
+        usarInstitucionPorSlug(slug);
 
         AdministradorResponse administrador = personalService.crearAdministrador(request);
-        bitacoraService.registrar("CREAR_ADMINISTRADOR", "usuario", administrador.usuarioId(), null);
+        Long usuarioId = personalService.usuarioIdDeAdministrador(administrador.codigo());
+        bitacoraService.registrar("CREAR_ADMINISTRADOR", "usuario", usuarioId, null);
 
         return administrador;
     }
 
     @Override
     @Transactional
-    public AdministradorResponse restablecerContrasenaAdministrador(Long id, Long usuarioId) {
+    public AdministradorResponse restablecerContrasenaAdministrador(String slug, String codigo) {
 
-        obtener(id);
-        TenantSupport.usarInstitucion(em, id);
+        usarInstitucionPorSlug(slug);
 
-        // confirma que el usuario si es administrador de esta institucion
-        personalService.buscarAdministrador(usuarioId);
+        // si el codigo no es de un administrador de esta institucion, falla aqui
+        Long usuarioId = personalService.usuarioIdDeAdministrador(codigo);
 
         usuarioService.restablecerContrasena(usuarioId);
         bitacoraService.registrar("RESTABLECER_CONTRASENA", "usuario", usuarioId, null);
 
-        return personalService.buscarAdministrador(usuarioId);
+        return personalService.buscarAdministrador(codigo);
     }
 
     @Override
     @Transactional
-    public AdministradorResponse asignarContrasenaAdministrador(Long id, Long usuarioId, String nueva) {
+    public AdministradorResponse asignarContrasenaAdministrador(String slug, String codigo, String nueva) {
 
-        obtener(id);
-        TenantSupport.usarInstitucion(em, id);
+        usarInstitucionPorSlug(slug);
 
-        personalService.buscarAdministrador(usuarioId);
+        Long usuarioId = personalService.usuarioIdDeAdministrador(codigo);
+
         usuarioService.asignarContrasena(usuarioId, nueva);
         bitacoraService.registrar("ASIGNAR_CONTRASENA", "usuario", usuarioId, null);
 
-        return personalService.buscarAdministrador(usuarioId);
+        return personalService.buscarAdministrador(codigo);
     }
 
     @Override
     @Transactional
-    public AdministradorResponse cambiarEstadoAdministrador(Long id, Long usuarioId, boolean activo) {
+    public AdministradorResponse cambiarEstadoAdministrador(String slug, String codigo, boolean activo) {
 
-        obtener(id);
-        TenantSupport.usarInstitucion(em, id);
+        usarInstitucionPorSlug(slug);
 
-        personalService.buscarAdministrador(usuarioId);
+        Long usuarioId = personalService.usuarioIdDeAdministrador(codigo);
         usuarioService.cambiarEstado(usuarioId, activo);
 
         if (activo) {
@@ -327,7 +327,7 @@ public class InstitucionServiceImpl implements InstitucionService {
             bitacoraService.registrar("INACTIVAR_USUARIO", "usuario", usuarioId, null);
         }
 
-        return personalService.buscarAdministrador(usuarioId);
+        return personalService.buscarAdministrador(codigo);
     }
 
     // ---------------------------------------------------------------- usuarios de la institucion
@@ -367,6 +367,24 @@ public class InstitucionServiceImpl implements InstitucionService {
     }
 
     // ---------------------------------------------------------------- ayudas
+
+    private Institucion obtenerPorSlug(String slug) {
+
+        Institucion institucion = repository.findBySlug(slug).orElse(null);
+
+        if (institucion == null) {
+            throw ApiException.noEncontrado("La institucion no existe");
+        }
+
+        return institucion;
+    }
+
+    // el superadmin elige la institucion por el slug de la url
+    private void usarInstitucionPorSlug(String slug) {
+
+        Institucion institucion = obtenerPorSlug(slug);
+        TenantSupport.usarInstitucion(em, institucion.getId());
+    }
 
     private Institucion obtener(Long id) {
 
