@@ -1,16 +1,14 @@
-package com.alertas.estudiante.dto;
+package com.alertas.personal.dto;
 
 import com.alertas.shared.dto.ErrorFila;
 import java.util.List;
 
 // token es null cuando hay errores: primero se corrige el archivo y se vuelve a subir
-public record VistaPreviaImportacionResponse(
+public record VistaPreviaPersonalResponse(
         String token,
-        int anio,
         int totalFilas,
         int nuevos,
         int actualizados,
-        List<String> gruposACrear,
         List<ErrorFila> errores,
         int totalErrores) {
 }

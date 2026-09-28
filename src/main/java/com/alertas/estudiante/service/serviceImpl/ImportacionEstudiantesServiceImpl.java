@@ -6,7 +6,7 @@ import com.alertas.estructura.dto.AnioLectivoResponse;
 import com.alertas.estructura.dto.GradoResponse;
 import com.alertas.estructura.dto.GrupoResponse;
 import com.alertas.estructura.service.EstructuraService;
-import com.alertas.estudiante.dto.ErrorFila;
+import com.alertas.shared.dto.ErrorFila;
 import com.alertas.estudiante.dto.FilaImportada;
 import com.alertas.estudiante.dto.ImportacionGuardada;
 import com.alertas.estudiante.dto.ResultadoImportacionResponse;

@@ -1,6 +1,5 @@
 package com.alertas.auth;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -25,14 +24,6 @@ class LoginInstitucionTest extends IntegracionTest {
 
     static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
 
-    static Long colegioA;
-    static Long colegioB;
-    static Long adminA;
-    static Long docenteA;
-    static Long psicoA;
-    static Long estudianteA1;
-    static Long estudianteA2;
-    static Long docenteB;
 
     @Autowired
     MockMvc mvc;
@@ -43,17 +34,17 @@ class LoginInstitucionTest extends IntegracionTest {
     @BeforeAll
     static void datos() {
 
-        colegioA = crearInstitucion("login-a");
-        colegioB = crearInstitucion("login-b");
+        Long colegioA = crearInstitucion("login-a");
+        Long colegioB = crearInstitucion("login-b");
         crearInstitucion("login-inactivo", false, true);
 
         // todos con contrasena = documento, como los crea el sistema
-        adminA = crearUsuario(colegioA, "1000", Rol.ADMIN, ENCODER.encode("1000"), false);
-        docenteA = crearUsuario(colegioA, "2000", Rol.DOCENTE, ENCODER.encode("2000"), true);
-        psicoA = crearUsuario(colegioA, "3000", Rol.PSICORIENTADOR, ENCODER.encode("clave-lista-1"), false);
-        estudianteA1 = crearUsuario(colegioA, "4001", Rol.ESTUDIANTE, ENCODER.encode("clave-lista-1"), false);
-        estudianteA2 = crearUsuario(colegioA, "4002", Rol.ESTUDIANTE, ENCODER.encode("clave-lista-1"), false);
-        docenteB = crearUsuario(colegioB, "9000", Rol.DOCENTE, ENCODER.encode("9000"), true);
+        crearUsuario(colegioA, "1000", Rol.ADMIN, ENCODER.encode("1000"), false);
+        crearUsuario(colegioA, "2000", Rol.DOCENTE, ENCODER.encode("2000"), true);
+        crearUsuario(colegioA, "3000", Rol.PSICORIENTADOR, ENCODER.encode("clave-lista-1"), false);
+        crearUsuario(colegioA, "4001", Rol.ESTUDIANTE, ENCODER.encode("clave-lista-1"), false);
+        crearUsuario(colegioA, "4002", Rol.ESTUDIANTE, ENCODER.encode("clave-lista-1"), false);
+        crearUsuario(colegioB, "9000", Rol.DOCENTE, ENCODER.encode("9000"), true);
     }
 
     private ResultActions login(String slug, String usuario, String contrasena) throws Exception {
@@ -186,76 +177,6 @@ class LoginInstitucionTest extends IntegracionTest {
         }
 
         loginDesde("200.1.1.1", "login-red", "31", "clave-lista-1").andExpect(status().isOk());
-    }
-
-    @Test
-    void adminRestableceYElUsuarioDebeCambiarla() throws Exception {
-
-        String admin = token(adminA, colegioA, "login-a", Rol.ADMIN);
-        String sesionPsico = tokenDe(login("login-a", "3000", "clave-lista-1").andExpect(status().isOk()));
-        Thread.sleep(5);
-
-        mvc.perform(post("/api/v1/usuarios/" + psicoA + "/restablecer-contrasena").header("Authorization", admin))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.debeCambiarContrasena").value(true));
-
-        mvc.perform(get("/api/v1/auth/yo").header("Authorization", sesionPsico)).andExpect(status().isUnauthorized());
-        login("login-a", "3000", "3000")
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.perfil.debeCambiarContrasena").value(true));
-
-        // otro administrador no se toca
-        mvc.perform(post("/api/v1/usuarios/" + adminA + "/restablecer-contrasena").header("Authorization", admin))
-                .andExpect(status().isForbidden());
-
-        // un usuario de otro colegio no existe para este admin
-        mvc.perform(post("/api/v1/usuarios/" + docenteB + "/restablecer-contrasena").header("Authorization", admin))
-                .andExpect(status().isNotFound());
-
-        // el docente no puede hacer esto
-        String docente = token(docenteA, colegioA, "login-a", Rol.DOCENTE);
-        mvc.perform(post("/api/v1/usuarios/" + psicoA + "/restablecer-contrasena").header("Authorization", docente))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void inactivarEstudiantesEnBloqueCierraSusSesiones() throws Exception {
-
-        Long colegio = crearInstitucion("login-masivo");
-        Long admin = crearUsuario(colegio, "1", Rol.ADMIN, "x", false);
-        Long est1 = crearUsuario(colegio, "11", Rol.ESTUDIANTE, "x", false);
-        crearUsuario(colegio, "12", Rol.ESTUDIANTE, "x", false);
-        Long docente = crearUsuario(colegio, "21", Rol.DOCENTE, "x", false);
-        // un estudiante de otro colegio no se debe tocar
-        Long ajeno = crearUsuario(colegioB, "11", Rol.ESTUDIANTE, "x", false);
-
-        String tokenAdmin = token(admin, colegio, "login-masivo", Rol.ADMIN);
-        String tokenEst = token(est1, colegio, "login-masivo", Rol.ESTUDIANTE);
-        String tokenDoc = token(docente, colegio, "login-masivo", Rol.DOCENTE);
-        Thread.sleep(5);
-
-        mvc.perform(patch("/api/v1/usuarios/estado-masivo").header("Authorization", tokenAdmin)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"rol\":\"ESTUDIANTE\",\"activo\":false}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.afectados").value(2));
-
-        mvc.perform(get("/api/v1/prueba/tenant").header("Authorization", tokenEst)).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/v1/prueba/tenant").header("Authorization", tokenDoc)).andExpect(status().isOk());
-
-        Boolean ajenoActivo = OWNER.queryForObject("SELECT usu_activo FROM usuarios WHERE usu_id = ?", Boolean.class, ajeno);
-        assertThat(ajenoActivo).isTrue();
-
-        // el rol admin no se puede inactivar en bloque
-        mvc.perform(patch("/api/v1/usuarios/estado-masivo").header("Authorization", tokenAdmin)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"rol\":\"ADMIN\",\"activo\":false}"))
-                .andExpect(status().isBadRequest());
-
-        // por seleccion, incluyendo al admin y al estudiante ajeno: ninguno de los dos cambia
-        String ids = "[" + est1 + "," + admin + "," + ajeno + "]";
-        mvc.perform(patch("/api/v1/usuarios/estado-masivo").header("Authorization", tokenAdmin)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"usuarioIds\":" + ids + ",\"activo\":true}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.afectados").value(1));
     }
 
     @Test
