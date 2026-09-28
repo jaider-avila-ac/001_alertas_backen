@@ -1,6 +1,4 @@
-# Servicios del backend. La base de datos NO está aquí: se despliega por separado (ver db/).
-# El backend se conecta a ella con DB_URL, DB_USERNAME y DB_PASSWORD.
-# El servicio del backend se agrega en la fase 15.
+# la bd no va aqui, se despliega aparte (ver db/)
 name: alertas
 
 services:

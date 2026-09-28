@@ -1,7 +1,7 @@
 #!/bin/bash
-# Crea los dos roles del sistema. Se ejecuta una sola vez, cuando el volumen de datos está vacío.
-#  - alertas_owner: dueño del esquema y de las tablas; con él se aplican las migraciones.
-#  - alertas_app:   rol de la aplicación. Al no ser dueño de las tablas, PostgreSQL le aplica RLS.
+# roles de la bd, corre solo la primera vez (volumen vacio)
+# alertas_owner: duenio de las tablas, con este se migra
+# alertas_app: el del backend, como no es duenio le aplica RLS
 set -euo pipefail
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \

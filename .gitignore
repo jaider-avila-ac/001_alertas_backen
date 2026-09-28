@@ -1,12 +1,9 @@
-# Variables de entorno reales (se entrega .env.example)
 .env
 .env.*
 !.env.example
 
-# Compilados
 target/
 *.log
 
-# Editor
 .vscode/
 .idea/

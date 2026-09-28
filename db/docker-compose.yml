@@ -1,5 +1,4 @@
-# Base de datos del sistema. Se despliega por separado del backend:
-# esta carpeta (db/) es todo lo que necesita el servidor de base de datos.
+# solo postgres, se despliega aparte del backend
 name: alertas-db
 
 services:
@@ -15,11 +14,10 @@ services:
       DB_APP_PASSWORD: ${DB_APP_PASSWORD}
       TZ: America/Bogota
     ports:
-      # En desarrollo 127.0.0.1. En producción, la IP privada que ve el servidor del backend.
+      # en produccion la ip privada
       - "${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Solo se ejecuta cuando el volumen está vacío (primer arranque)
       - ./init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]

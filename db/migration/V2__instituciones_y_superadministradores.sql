@@ -1,8 +1,6 @@
--- V2: instituciones (los tenants) y superadministradores.
--- Ninguna de las dos tablas lleva RLS:
---  - instituciones debe poder leerse antes de conocer el tenant (el login resuelve slug -> id)
---    y no contiene datos sensibles;
---  - superadministradores no pertenece a ningún tenant.
+-- instituciones (tenants) y superadmins
+-- estas dos no llevan RLS: instituciones se lee antes de saber el tenant (login por slug)
+-- y los superadmins no son de ninguna institucion
 
 CREATE TABLE instituciones (
     ins_id                  bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -15,17 +13,17 @@ CREATE TABLE instituciones (
     ins_telefono            varchar(20),
     ins_correo              varchar(120),
     ins_activa              boolean      NOT NULL DEFAULT true,
-    -- Interruptor para cerrar el acceso de todos los estudiantes (ej. vacaciones)
+    -- para cerrar el acceso a todos los estudiantes, ej vacaciones
     ins_acceso_estudiantes  boolean      NOT NULL DEFAULT true,
     ins_sms_activo          boolean      NOT NULL DEFAULT false,
     ins_creado_en           timestamptz  NOT NULL DEFAULT now(),
     ins_actualizado_en      timestamptz  NOT NULL DEFAULT now(),
 
     CONSTRAINT uq_instituciones_slug UNIQUE (ins_slug),
-    -- El slug forma parte de la URL: minúsculas, números y guiones simples
+    -- va en la url
     CONSTRAINT ck_instituciones_slug_formato
         CHECK (ins_slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$' AND length(ins_slug) BETWEEN 3 AND 60),
-    -- Rutas propias del frontend que no pueden usarse como slug
+    -- rutas que ya usa el front
     CONSTRAINT ck_instituciones_slug_reservado
         CHECK (ins_slug NOT IN ('superadmin', 'api', 'admin', 'login', 'assets', 'static', 'public'))
 );

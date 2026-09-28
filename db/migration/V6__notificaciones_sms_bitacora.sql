@@ -1,4 +1,4 @@
--- V6: notificaciones en la app, registro de SMS y bitácora de acciones sensibles.
+-- notificaciones, sms y bitacora
 
 CREATE TABLE notificaciones (
     not_id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -7,7 +7,7 @@ CREATE TABLE notificaciones (
     not_tipo       varchar(40)  NOT NULL,
     not_titulo     varchar(120) NOT NULL,
     not_mensaje    varchar(300) NOT NULL,
-    -- Ruta del frontend a la que lleva la notificación (sin el slug)
+    -- ruta del front sin el slug
     not_enlace     varchar(200),
     not_leida      boolean      NOT NULL DEFAULT false,
     not_creado_en  timestamptz  NOT NULL DEFAULT now(),
@@ -17,11 +17,10 @@ CREATE TABLE notificaciones (
         REFERENCES usuarios (usu_ins_id, usu_id) ON DELETE CASCADE
 );
 
--- Contador de no leídas y listado del usuario
 CREATE INDEX ix_notificaciones_usuario ON notificaciones (not_ins_id, not_usu_id, not_leida, not_creado_en DESC);
 
 
--- Un registro por mensaje enviado (o intentado). Sirve para controlar el costo por institución.
+-- un registro por sms, sirve para ver el costo por institucion
 CREATE TABLE sms_envios (
     sms_id             bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     sms_ins_id         bigint       NOT NULL,
@@ -51,12 +50,11 @@ CREATE TABLE sms_envios (
 CREATE INDEX ix_sms_envios_fecha ON sms_envios (sms_ins_id, sms_creado_en);
 
 
--- Bitácora de acciones sensibles (Ley 1581 de 2012): restablecimientos, activaciones,
--- reasignaciones, consulta de expedientes. Solo se inserta y se lee; nunca se modifica.
+-- acciones sensibles (ley 1581). solo insert y select
 CREATE TABLE bitacora (
     bit_id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     bit_ins_id     bigint       NOT NULL REFERENCES instituciones (ins_id),
-    -- Quién hizo la acción: un usuario de la institución o un superadministrador
+    -- o lo hizo un usuario o un superadmin
     bit_usu_id     bigint,
     bit_sad_id     bigint REFERENCES superadministradores (sad_id),
     bit_accion     varchar(60)  NOT NULL,

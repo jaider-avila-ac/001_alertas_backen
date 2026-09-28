@@ -1,19 +1,18 @@
--- V3: usuarios, personal (admin, docente, psicorientador), estudiantes y familiares.
+-- usuarios, personal, estudiantes y familiares
 --
--- Convención de aislamiento: cada tabla tiene UNIQUE (<ins_id>, <id>) y las referencias entre
--- tablas usan claves foráneas compuestas (ins_id, id). Así la propia base de datos impide
--- relacionar filas de dos instituciones distintas, aunque la aplicación tuviera un error.
+-- cada tabla tiene unique (ins_id, id) y las fk van por (ins_id, id),
+-- asi no se puede mezclar datos de dos instituciones aunque el backend falle
 
 CREATE TABLE usuarios (
     usu_id                       bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     usu_ins_id                   bigint       NOT NULL REFERENCES instituciones (ins_id),
-    -- Siempre es el número de documento de la persona
+    -- numero de documento
     usu_usuario                  varchar(20)  NOT NULL,
     usu_contrasena_hash          varchar(100) NOT NULL,
     usu_rol                      varchar(20)  NOT NULL,
     usu_activo                   boolean      NOT NULL DEFAULT true,
     usu_debe_cambiar_contrasena  boolean      NOT NULL DEFAULT true,
-    -- Los JWT emitidos antes de esta fecha dejan de ser válidos
+    -- tokens anteriores a esta fecha ya no sirven
     usu_contrasena_cambiada_en   timestamptz,
     usu_ultimo_ingreso           timestamptz,
     usu_creado_en                timestamptz  NOT NULL DEFAULT now(),
@@ -27,7 +26,7 @@ CREATE TABLE usuarios (
 CREATE INDEX ix_usuarios_rol ON usuarios (usu_ins_id, usu_rol, usu_activo);
 
 
--- Personal de la institución. El rol está en usuarios (una persona tiene un solo rol).
+-- admin, docente y psicorientador. el rol esta en usuarios
 CREATE TABLE personal (
     per_id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     per_ins_id          bigint       NOT NULL,
@@ -61,14 +60,14 @@ CREATE TABLE estudiantes (
     est_ins_id           bigint       NOT NULL,
     est_usu_id           bigint       NOT NULL,
     est_tipo_doc         varchar(3)   NOT NULL,
-    -- Único por institución sin importar el tipo: al pasar de RC a TI el número (NUIP) se conserva
+    -- unico sin importar el tipo, de RC a TI el numero no cambia
     est_nro_doc          varchar(20)  NOT NULL,
     est_nombres          varchar(80)  NOT NULL,
     est_apellidos        varchar(80)  NOT NULL,
     est_genero           char(1),
     est_fecha_nacimiento date,
     est_celular          varchar(10),
-    -- El psicorientador puede apagar los SMS a familiares de este estudiante (ej. violencia intrafamiliar)
+    -- el psicorientador lo puede apagar, ej violencia intrafamiliar
     est_sms_familiares   boolean      NOT NULL DEFAULT true,
     est_busqueda         text GENERATED ALWAYS AS
                              (lower(f_unaccent(est_nombres || ' ' || est_apellidos || ' ' || est_nro_doc))) STORED,
@@ -89,7 +88,7 @@ CREATE INDEX ix_estudiantes_busqueda ON estudiantes USING gin (est_busqueda gin_
 CREATE INDEX ix_estudiantes_orden    ON estudiantes (est_ins_id, est_apellidos, est_nombres);
 
 
--- Máximo 3 familiares por estudiante: fam_posicion solo admite 1, 2 o 3 y es única por estudiante.
+-- maximo 3 familiares: posicion 1 a 3 y unica por estudiante
 CREATE TABLE familiares (
     fam_id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     fam_ins_id          bigint       NOT NULL,
@@ -111,7 +110,6 @@ CREATE TABLE familiares (
     CONSTRAINT ck_familiares_parentesco
         CHECK (fam_parentesco IN ('MADRE', 'PADRE', 'ACUDIENTE', 'ABUELO', 'HERMANO', 'TIO', 'OTRO')),
     CONSTRAINT ck_familiares_celular   CHECK (fam_celular ~ '^3[0-9]{9}$'),
-    -- No tiene sentido marcar "recibe SMS" sin celular
     CONSTRAINT ck_familiares_sms_celular CHECK (NOT fam_recibe_sms OR fam_celular IS NOT NULL)
 );
 

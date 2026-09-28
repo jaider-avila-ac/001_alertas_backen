@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Ejecuta pruebas/prueba_rls.sql: aislamiento entre instituciones y reglas del esquema.
-# No deja datos (la prueba termina en ROLLBACK).
+# corre pruebas/prueba_rls.sql, termina en rollback
 set -euo pipefail
 cd "$(dirname "$0")"
 set -a; source .env; set +a

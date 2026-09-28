@@ -1,11 +1,8 @@
--- V7: Row Level Security y permisos del rol de la aplicación.
+-- RLS y permisos de alertas_app
 --
--- Las políticas se aplican a alertas_app porque no es dueño de las tablas. No se usa
--- FORCE ROW LEVEL SECURITY: así las funciones SECURITY DEFINER del dueño (estadísticas
--- globales del superadmin, fase 14) pueden devolver agregados de todas las instituciones.
+-- alertas_app no es duenio de las tablas, por eso le aplica RLS.
+-- sin FORCE para que las funciones SECURITY DEFINER de estadisticas del superadmin puedan ver todo
 --
--- USING filtra lo que se lee, actualiza y borra; WITH CHECK impide insertar o mover
--- una fila a otra institución.
 
 DO $$
 DECLARE
@@ -38,8 +35,7 @@ BEGIN
 END $$;
 
 
--- Permisos mínimos por tabla. Solo se concede DELETE donde el negocio borra de verdad;
--- el resto se inactiva. La bitácora es de solo inserción.
+-- delete solo donde de verdad se borra, lo demas se inactiva
 GRANT SELECT, INSERT, UPDATE ON instituciones, superadministradores TO alertas_app;
 
 GRANT SELECT, INSERT, UPDATE ON
@@ -53,5 +49,4 @@ TO alertas_app;
 
 GRANT SELECT, INSERT ON bitacora TO alertas_app;
 
--- Las columnas identity usan secuencias internas
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO alertas_app;
