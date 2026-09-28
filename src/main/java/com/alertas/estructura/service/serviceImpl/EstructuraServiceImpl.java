@@ -197,7 +197,44 @@ public class EstructuraServiceImpl implements EstructuraService {
         bitacoraService.registrar("BORRAR_ANIO", "anio_lectivo", anioId, String.valueOf(anio.getAnio()));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public AnioLectivoResponse anioActivo() {
+
+        TenantSupport.requireTenant(em);
+
+        AnioLectivo activo = anioRepository.findByActivoTrue().orElse(null);
+
+        if (activo == null) {
+            return null;
+        }
+
+        return AnioLectivoResponse.desde(activo, grupoRepository.countByAnioId(activo.getId()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AnioLectivoResponse buscarAnioEditable(Long anioId) {
+
+        TenantSupport.requireTenant(em);
+
+        AnioLectivo anio = obtenerAnio(anioId);
+        validarAnioEditable(anio);
+
+        return AnioLectivoResponse.desde(anio, grupoRepository.countByAnioId(anioId));
+    }
+
     // ---------------------------------------------------------------- grupos
+
+    @Override
+    @Transactional(readOnly = true)
+    public GrupoResponse buscarGrupo(Long grupoId) {
+
+        TenantSupport.requireTenant(em);
+
+        Grupo grupo = obtenerGrupo(grupoId);
+        return GrupoResponse.desde(grupo, grupoRepository.contarEstudiantes(grupoId));
+    }
 
     @Override
     @Transactional(readOnly = true)

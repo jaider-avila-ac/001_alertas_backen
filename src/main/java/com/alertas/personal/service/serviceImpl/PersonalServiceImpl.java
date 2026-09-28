@@ -3,7 +3,7 @@ package com.alertas.personal.service.serviceImpl;
 import com.alertas.auth.model.Rol;
 import com.alertas.personal.dto.AdministradorRequest;
 import com.alertas.personal.dto.AdministradorResponse;
-import com.alertas.personal.dto.NombrePersona;
+import com.alertas.shared.dto.NombrePersona;
 import com.alertas.personal.model.Personal;
 import com.alertas.personal.repository.PersonalRepository;
 import com.alertas.personal.service.PersonalService;

@@ -2,6 +2,7 @@ package com.alertas.usuario.repository;
 
 import com.alertas.auth.model.Rol;
 import com.alertas.usuario.model.Usuario;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,6 +16,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByUsuario(String usuario);
 
     boolean existsByUsuario(String usuario);
+
+    @Query("SELECT u.usuario FROM Usuario u WHERE u.usuario IN :documentos")
+    List<String> documentosExistentes(@Param("documentos") Collection<String> documentos);
 
     // los administradores nunca entran en los cambios masivos, esos los maneja el superadmin
     @Modifying(clearAutomatically = true, flushAutomatically = true)

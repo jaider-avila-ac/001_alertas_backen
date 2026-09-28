@@ -9,10 +9,11 @@ import com.alertas.auth.model.UsuarioAutenticado;
 import com.alertas.auth.service.AuthService;
 import com.alertas.auth.service.JwtService;
 import com.alertas.auth.service.LimiteIntentosService;
+import com.alertas.estudiante.service.EstudianteService;
 import com.alertas.institucion.dto.EstadoInstitucion;
 import com.alertas.institucion.dto.InstitucionPublicaResponse;
 import com.alertas.institucion.service.InstitucionService;
-import com.alertas.personal.dto.NombrePersona;
+import com.alertas.shared.dto.NombrePersona;
 import com.alertas.personal.service.PersonalService;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.exception.ApiException;
@@ -31,6 +32,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final UsuarioService usuarioService;
     private final PersonalService personalService;
+    private final EstudianteService estudianteService;
     private final InstitucionService institucionService;
     private final JwtService jwtService;
     private final LimiteIntentosService limiteIntentos;
@@ -40,6 +42,7 @@ public class AuthServiceImpl implements AuthService {
     public AuthServiceImpl(
             UsuarioService usuarioService,
             PersonalService personalService,
+            EstudianteService estudianteService,
             InstitucionService institucionService,
             JwtService jwtService,
             LimiteIntentosService limiteIntentos,
@@ -48,6 +51,7 @@ public class AuthServiceImpl implements AuthService {
 
         this.usuarioService = usuarioService;
         this.personalService = personalService;
+        this.estudianteService = estudianteService;
         this.institucionService = institucionService;
         this.jwtService = jwtService;
         this.limiteIntentos = limiteIntentos;
@@ -132,6 +136,10 @@ public class AuthServiceImpl implements AuthService {
         String apellidos = "";
 
         NombrePersona nombre = personalService.buscarNombre(usuario.getId());
+
+        if (nombre == null) {
+            nombre = estudianteService.buscarNombre(usuario.getId());
+        }
 
         if (nombre != null) {
             nombres = nombre.nombres();

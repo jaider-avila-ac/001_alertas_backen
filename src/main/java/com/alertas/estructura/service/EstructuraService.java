@@ -28,6 +28,12 @@ public interface EstructuraService {
 
     void borrarAnio(Long anioId);
 
+    // null si la institucion no tiene anio activo
+    AnioLectivoResponse anioActivo();
+
+    // falla si el anio ya paso (sus grupos y ubicaciones son historial)
+    AnioLectivoResponse buscarAnioEditable(Long anioId);
+
     // ---- grupos ----
 
     // anioId null = el anio activo. son pocos por anio, no se pagina
@@ -38,4 +44,7 @@ public interface EstructuraService {
     GrupoResponse renombrarGrupo(Long grupoId, String nombre);
 
     void borrarGrupo(Long grupoId);
+
+    // falla si no existe en la institucion
+    GrupoResponse buscarGrupo(Long grupoId);
 }

@@ -10,7 +10,17 @@ import com.alertas.usuario.repository.UsuarioRepository;
 import com.alertas.usuario.service.UsuarioService;
 import jakarta.persistence.EntityManager;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -103,6 +113,105 @@ public class UsuarioServiceImpl implements UsuarioService {
 
         Usuario usuario = buscarPorId(usuarioId);
         usuario.setUltimoIngreso(OffsetDateTime.now());
+    }
+
+    @Override
+    @Transactional
+    public void cambiarDocumento(Long usuarioId, String documento) {
+
+        Usuario usuario = buscarPorId(usuarioId);
+
+        if (usuario.getUsuario().equals(documento)) {
+            return;
+        }
+
+        if (repository.existsByUsuario(documento)) {
+            throw ApiException.conflicto("Ya existe un usuario con el documento " + documento);
+        }
+
+        usuario.setUsuario(documento);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<String> documentosEnUso(Collection<String> documentos) {
+
+        TenantSupport.requireTenant(em);
+
+        Set<String> enUso = new HashSet<>();
+
+        if (documentos.isEmpty()) {
+            return enUso;
+        }
+
+        enUso.addAll(repository.documentosExistentes(documentos));
+        return enUso;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Usuario> crearVarios(List<String> documentos, Rol rol) {
+
+        Long institucionId = TenantSupport.requireTenant(em);
+        Map<String, Usuario> creados = new HashMap<>();
+
+        if (documentos.isEmpty()) {
+            return creados;
+        }
+
+        // bcrypt tarda ~80 ms por contrasena: 2000 estudiantes serian casi 3 minutos en fila.
+        // se reparte entre los nucleos del servidor
+        Map<String, String> hashes = cifrarEnParalelo(documentos);
+
+        List<Usuario> nuevos = new ArrayList<>();
+
+        for (String documento : documentos) {
+            Usuario usuario = new Usuario();
+            usuario.setInstitucionId(institucionId);
+            usuario.setUsuario(documento);
+            usuario.setContrasenaHash(hashes.get(documento));
+            usuario.setRol(rol);
+            usuario.setActivo(true);
+            usuario.setDebeCambiarContrasena(debeCambiarAlRestablecer(rol));
+            nuevos.add(usuario);
+        }
+
+        repository.saveAll(nuevos);
+
+        for (Usuario usuario : nuevos) {
+            creados.put(usuario.getUsuario(), usuario);
+        }
+
+        return creados;
+    }
+
+    private Map<String, String> cifrarEnParalelo(List<String> documentos) {
+
+        int hilos = Math.max(1, Runtime.getRuntime().availableProcessors());
+        ExecutorService ejecutor = Executors.newFixedThreadPool(hilos);
+        Map<String, Future<String>> pendientes = new HashMap<>();
+
+        try {
+            for (String documento : documentos) {
+                Future<String> hash = ejecutor.submit(() -> passwordEncoder.encode(documento));
+                pendientes.put(documento, hash);
+            }
+
+            Map<String, String> hashes = new HashMap<>();
+
+            for (Map.Entry<String, Future<String>> entrada : pendientes.entrySet()) {
+                hashes.put(entrada.getKey(), entrada.getValue().get());
+            }
+
+            return hashes;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Se interrumpio el cifrado de contrasenas", e);
+        } catch (ExecutionException e) {
+            throw new IllegalStateException("Fallo cifrando contrasenas", e);
+        } finally {
+            ejecutor.shutdown();
+        }
     }
 
     // ---------------------------------------------------------------- contrasenas

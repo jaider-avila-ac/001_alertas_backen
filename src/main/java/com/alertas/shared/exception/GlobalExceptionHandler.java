@@ -20,6 +20,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
@@ -71,6 +72,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ErrorResponse> faltaCabecera(MissingRequestHeaderException e) {
         return responder(HttpStatus.BAD_REQUEST, "Falta la cabecera " + e.getHeaderName());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> archivoGrande(MaxUploadSizeExceededException e) {
+        return responder(HttpStatus.BAD_REQUEST, "El archivo es muy grande, maximo 5 MB");
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

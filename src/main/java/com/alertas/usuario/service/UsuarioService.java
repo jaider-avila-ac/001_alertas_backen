@@ -2,7 +2,10 @@ package com.alertas.usuario.service;
 
 import com.alertas.auth.model.Rol;
 import com.alertas.usuario.model.Usuario;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 // todos trabajan sobre la institucion del contexto (requireTenant)
 public interface UsuarioService {
@@ -18,6 +21,15 @@ public interface UsuarioService {
     Usuario buscarPorDocumento(String documento);
 
     void registrarIngreso(Long usuarioId);
+
+    // cuando se corrige el documento de la persona, el usuario cambia con el
+    void cambiarDocumento(Long usuarioId, String documento);
+
+    // de los documentos dados, los que ya tienen usuario en la institucion
+    Set<String> documentosEnUso(Collection<String> documentos);
+
+    // para la importacion por excel: cifra las contrasenas en paralelo (bcrypt es lento a proposito)
+    Map<String, Usuario> crearVarios(List<String> documentos, Rol rol);
 
     // ---- contrasenas ----
 

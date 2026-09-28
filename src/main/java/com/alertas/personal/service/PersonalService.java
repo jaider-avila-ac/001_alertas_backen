@@ -2,7 +2,7 @@ package com.alertas.personal.service;
 
 import com.alertas.personal.dto.AdministradorRequest;
 import com.alertas.personal.dto.AdministradorResponse;
-import com.alertas.personal.dto.NombrePersona;
+import com.alertas.shared.dto.NombrePersona;
 import java.util.List;
 
 // trabaja sobre la institucion del contexto (requireTenant)

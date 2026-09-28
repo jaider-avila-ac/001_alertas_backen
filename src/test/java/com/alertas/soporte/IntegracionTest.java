@@ -1,7 +1,10 @@
 package com.alertas.soporte;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+
 import com.alertas.auth.model.Rol;
 import com.alertas.auth.service.JwtService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -10,14 +13,19 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Map;
 import java.util.TreeMap;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -79,6 +87,37 @@ public abstract class IntegracionTest {
 
     protected String token(Long usuarioId, Long institucionId, String slug, Rol rol) {
         return "Bearer " + jwtService.generar(usuarioId, institucionId, slug, rol);
+    }
+
+    // colegio creado por la api del superadmin (con grados, anio activo, categorias y admin).
+    // admin es el token del administrador listo para usar
+    public record Colegio(Long id, String slug, String admin) {
+    }
+
+    protected Colegio crearColegioCompleto(MockMvc mvc, ObjectMapper mapper, String slug, String documentoAdmin)
+            throws Exception {
+
+        MvcResult login = mvc.perform(post("/api/v1/superadmin/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"usuario\":\"" + SUPERADMIN_USUARIO + "\",\"contrasena\":\"" + SUPERADMIN_CONTRASENA + "\"}"))
+                .andReturn();
+        String sa = "Bearer " + mapper.readTree(login.getResponse().getContentAsString()).get("token").asText();
+
+        String body = mapper.writeValueAsString(Map.of(
+                "institucion", Map.of("nombre", "Colegio " + slug, "slug", slug),
+                "administrador", Map.of("tipoDoc", "CC", "nroDoc", documentoAdmin, "nombres", "Admin", "apellidos", "Prueba")));
+
+        MvcResult creada = mvc.perform(post("/api/v1/superadmin/instituciones").header("Authorization", sa)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andReturn();
+
+        if (creada.getResponse().getStatus() != 201) {
+            throw new IllegalStateException("No se creo el colegio: " + creada.getResponse().getContentAsString());
+        }
+
+        Long id = idInstitucion(slug);
+        Long adminId = idUsuario(id, documentoAdmin);
+        return new Colegio(id, slug, token(adminId, id, slug, Rol.ADMIN));
     }
 
     // la api ya no devuelve ids, las pruebas los sacan de la bd para armar tokens
