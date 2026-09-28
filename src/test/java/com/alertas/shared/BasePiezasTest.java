@@ -99,8 +99,20 @@ class BasePiezasTest extends IntegracionTest {
         limiteIntentos.registrarFallo(usuario, ip);
         assertThat(limiteIntentos.estaBloqueado(usuario, ip)).isTrue();
 
-        // otro usuario desde la misma ip tambien queda bloqueado
-        assertThat(limiteIntentos.estaBloqueado("piezas:otro", ip)).isTrue();
+        // a otro usuario desde la misma ip no le afecta: la ip aguanta mas (red del colegio)
+        assertThat(limiteIntentos.estaBloqueado("piezas:otro", ip)).isFalse();
+    }
+
+    @Test
+    void laIpSeBloqueaConMuchosFallosDeUsuariosDistintos() {
+
+        String ip = "ip:" + UUID.randomUUID();
+
+        for (int i = 0; i < 50; i++) {
+            limiteIntentos.registrarFallo("piezas:" + UUID.randomUUID(), ip);
+        }
+
+        assertThat(limiteIntentos.estaBloqueado("piezas:cualquiera", ip)).isTrue();
     }
 
     @Test

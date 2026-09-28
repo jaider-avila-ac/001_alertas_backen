@@ -1,0 +1,320 @@
+package com.alertas.institucion;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.alertas.auth.model.Rol;
+import com.alertas.soporte.IntegracionTest;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDate;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+class InstitucionSuperadminTest extends IntegracionTest {
+
+    @Autowired
+    MockMvc mvc;
+
+    @Autowired
+    ObjectMapper mapper;
+
+    @Autowired
+    PasswordEncoder passwordEncoder;
+
+    String tokenSa;
+
+    @BeforeEach
+    void entrarComoSuperadmin() throws Exception {
+
+        String body = "{\"usuario\":\"" + SUPERADMIN_USUARIO + "\",\"contrasena\":\"" + SUPERADMIN_CONTRASENA + "\"}";
+
+        MvcResult resultado = mvc.perform(post("/api/v1/superadmin/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        tokenSa = "Bearer " + leer(resultado).get("token").asText();
+    }
+
+    private JsonNode leer(MvcResult resultado) throws Exception {
+        return mapper.readTree(resultado.getResponse().getContentAsString());
+    }
+
+    private String json(Object objeto) throws Exception {
+        return mapper.writeValueAsString(objeto);
+    }
+
+    private Map<String, Object> datosInstitucion(String nombre, String slug) {
+
+        return Map.of(
+                "nombre", nombre,
+                "slug", slug,
+                "municipio", "Monteria",
+                "departamento", "Cordoba");
+    }
+
+    private Map<String, Object> datosAdmin(String documento) {
+
+        return Map.of(
+                "tipoDoc", "CC",
+                "nroDoc", documento,
+                "nombres", "Ana",
+                "apellidos", "Rios");
+    }
+
+    private JsonNode crearInstitucion(String nombre, String slug, String documentoAdmin) throws Exception {
+
+        String body = json(Map.of(
+                "institucion", datosInstitucion(nombre, slug),
+                "administrador", datosAdmin(documentoAdmin)));
+
+        MvcResult resultado = mvc.perform(post("/api/v1/superadmin/instituciones")
+                        .header("Authorization", tokenSa)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        return leer(resultado);
+    }
+
+    @Test
+    void loginConClaveMalaDa401() throws Exception {
+
+        mvc.perform(post("/api/v1/superadmin/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"usuario\":\"" + SUPERADMIN_USUARIO + "\",\"contrasena\":\"mala\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Usuario o contrasena incorrectos"));
+
+        mvc.perform(get("/api/v1/superadmin/auth/yo").header("Authorization", tokenSa))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.usuario").value(SUPERADMIN_USUARIO));
+    }
+
+    @Test
+    void crearInstitucionDejaTodoListo() throws Exception {
+
+        JsonNode creada = crearInstitucion("Colegio Completo", "colegio-completo", "10101010");
+        long id = creada.get("institucion").get("id").asLong();
+
+        assertThat(creada.get("institucion").get("enlace").asText()).isEqualTo("http://localhost:5173/colegio-completo");
+        // el admin no puede cambiar su contrasena, asi que no se le obliga
+        assertThat(creada.get("administrador").get("debeCambiarContrasena").asBoolean()).isFalse();
+
+        Integer grados = OWNER.queryForObject("SELECT count(*) FROM grados WHERE gra_ins_id = ?", Integer.class, id);
+        Integer gradosActivos = OWNER.queryForObject(
+                "SELECT count(*) FROM grados WHERE gra_ins_id = ? AND gra_activo", Integer.class, id);
+        Integer anio = OWNER.queryForObject(
+                "SELECT anl_anio FROM anios_lectivos WHERE anl_ins_id = ? AND anl_activo", Integer.class, id);
+        Integer categorias = OWNER.queryForObject(
+                "SELECT count(*) FROM categorias_alerta WHERE cat_ins_id = ?", Integer.class, id);
+
+        assertThat(grados).isEqualTo(14);
+        assertThat(gradosActivos).isEqualTo(12);
+        assertThat(anio).isEqualTo(LocalDate.now().getYear());
+        assertThat(categorias).isEqualTo(6);
+
+        // usuario = documento y contrasena = documento, guardada con bcrypt
+        String hash = OWNER.queryForObject(
+                "SELECT usu_contrasena_hash FROM usuarios WHERE usu_ins_id = ? AND usu_usuario = '10101010' AND usu_rol = 'ADMIN'",
+                String.class, id);
+        assertThat(passwordEncoder.matches("10101010", hash)).isTrue();
+
+        Integer bitacora = OWNER.queryForObject(
+                "SELECT count(*) FROM bitacora WHERE bit_ins_id = ? AND bit_accion = 'CREAR_INSTITUCION' AND bit_sad_id IS NOT NULL",
+                Integer.class, id);
+        assertThat(bitacora).isEqualTo(1);
+    }
+
+    @Test
+    void slugRepetidoReservadoOMalEscrito() throws Exception {
+
+        crearInstitucion("Colegio Unico", "colegio-unico", "20202020");
+
+        String repetido = json(Map.of(
+                "institucion", datosInstitucion("Otro", "colegio-unico"),
+                "administrador", datosAdmin("20202021")));
+
+        mvc.perform(post("/api/v1/superadmin/instituciones").header("Authorization", tokenSa)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON).content(repetido))
+                .andExpect(status().isConflict());
+
+        String reservado = json(Map.of(
+                "institucion", datosInstitucion("Otro", "api"),
+                "administrador", datosAdmin("20202022")));
+
+        mvc.perform(post("/api/v1/superadmin/instituciones").header("Authorization", tokenSa)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON).content(reservado))
+                .andExpect(status().isBadRequest());
+
+        String conEspacios = json(Map.of(
+                "institucion", datosInstitucion("Otro", "Mi Colegio"),
+                "administrador", datosAdmin("20202023")));
+
+        mvc.perform(post("/api/v1/superadmin/instituciones").header("Authorization", tokenSa)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON).content(conEspacios))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("El enlace solo lleva minusculas, numeros y guiones, sin espacios"));
+    }
+
+    @Test
+    void inhabilitarCortaElAccesoYHabilitarLoDevuelve() throws Exception {
+
+        JsonNode creada = crearInstitucion("Colegio Pausa", "colegio-pausa", "30303030");
+        long id = creada.get("institucion").get("id").asLong();
+        long adminId = creada.get("administrador").get("usuarioId").asLong();
+        String tokenAdmin = token(adminId, id, "colegio-pausa", Rol.ADMIN);
+
+        mvc.perform(get("/api/v1/prueba/tenant").header("Authorization", tokenAdmin)).andExpect(status().isOk());
+
+        mvc.perform(patch("/api/v1/superadmin/instituciones/" + id + "/inactivar").header("Authorization", tokenSa)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"motivo\":\" \"}"))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(patch("/api/v1/superadmin/instituciones/" + id + "/inactivar").header("Authorization", tokenSa)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"motivo\":\"Fin de contrato\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activa").value(false))
+                .andExpect(jsonPath("$.motivoInactivacion").value("Fin de contrato"));
+
+        // de inmediato, sin esperar a que venza la cache
+        mvc.perform(get("/api/v1/prueba/tenant").header("Authorization", tokenAdmin)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/public/colegio-pausa/prueba")).andExpect(status().isNotFound());
+
+        mvc.perform(patch("/api/v1/superadmin/instituciones/" + id + "/activar").header("Authorization", tokenSa))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activa").value(true))
+                .andExpect(jsonPath("$.motivoInactivacion").doesNotExist());
+
+        mvc.perform(get("/api/v1/prueba/tenant").header("Authorization", tokenAdmin)).andExpect(status().isOk());
+    }
+
+    @Test
+    void listarBuscaSinTildesYFiltraPorEstado() throws Exception {
+
+        crearInstitucion("Institucion Educativa San José", "ie-san-jose", "40404040");
+        JsonNode otra = crearInstitucion("Colegio Pío XII", "colegio-pio", "40404041");
+
+        mvc.perform(patch("/api/v1/superadmin/instituciones/" + otra.get("institucion").get("id").asLong() + "/inactivar")
+                        .header("Authorization", tokenSa)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"motivo\":\"Prueba\"}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/v1/superadmin/instituciones").param("texto", "SAN JOSE").header("Authorization", tokenSa))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElementos").value(1))
+                .andExpect(jsonPath("$.contenido[0].slug").value("ie-san-jose"));
+
+        mvc.perform(get("/api/v1/superadmin/instituciones").param("texto", "pio").param("activa", "false")
+                        .header("Authorization", tokenSa))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElementos").value(1));
+
+        mvc.perform(get("/api/v1/superadmin/instituciones").param("tamanio", "1000").header("Authorization", tokenSa))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tamanio").value(50));
+    }
+
+    @Test
+    void restablecerEInactivarAdministradorCierraSusSesiones() throws Exception {
+
+        JsonNode creada = crearInstitucion("Colegio Claves", "colegio-claves", "50505050");
+        long id = creada.get("institucion").get("id").asLong();
+        long adminId = creada.get("administrador").get("usuarioId").asLong();
+
+        OWNER.update("UPDATE usuarios SET usu_contrasena_hash = 'otra', usu_debe_cambiar_contrasena = false WHERE usu_id = ?", adminId);
+        String tokenViejo = token(adminId, id, "colegio-claves", Rol.ADMIN);
+        Thread.sleep(5);
+
+        mvc.perform(post("/api/v1/superadmin/instituciones/" + id + "/administradores/" + adminId + "/restablecer-contrasena")
+                        .header("Authorization", tokenSa))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.debeCambiarContrasena").value(false));
+
+        String hash = OWNER.queryForObject("SELECT usu_contrasena_hash FROM usuarios WHERE usu_id = ?", String.class, adminId);
+        assertThat(passwordEncoder.matches("50505050", hash)).isTrue();
+        mvc.perform(get("/api/v1/prueba/tenant").header("Authorization", tokenViejo)).andExpect(status().isUnauthorized());
+
+        Thread.sleep(5);
+        String tokenNuevo = token(adminId, id, "colegio-claves", Rol.ADMIN);
+        Thread.sleep(5);
+
+        mvc.perform(patch("/api/v1/superadmin/instituciones/" + id + "/administradores/" + adminId + "/estado")
+                        .header("Authorization", tokenSa)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"activo\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activo").value(false));
+
+        mvc.perform(get("/api/v1/prueba/tenant").header("Authorization", tokenNuevo)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void administradoresDeUnaInstitucionNoSeMezclanConOtra() throws Exception {
+
+        JsonNode a = crearInstitucion("Colegio Admin A", "colegio-admin-a", "60606060");
+        JsonNode b = crearInstitucion("Colegio Admin B", "colegio-admin-b", "60606060");
+        long idA = a.get("institucion").get("id").asLong();
+        long adminDeB = b.get("administrador").get("usuarioId").asLong();
+
+        // mismo documento en dos colegios distintos si se permite
+        assertThat(b.get("administrador").get("nroDoc").asText()).isEqualTo("60606060");
+
+        mvc.perform(get("/api/v1/superadmin/instituciones/" + idA + "/administradores").header("Authorization", tokenSa))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+
+        // el admin de B no se puede tocar entrando por A
+        mvc.perform(post("/api/v1/superadmin/instituciones/" + idA + "/administradores/" + adminDeB + "/restablecer-contrasena")
+                        .header("Authorization", tokenSa))
+                .andExpect(status().isNotFound());
+
+        // documento repetido dentro del mismo colegio
+        mvc.perform(post("/api/v1/superadmin/instituciones/" + idA + "/administradores")
+                        .header("Authorization", tokenSa)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON).content(json(datosAdmin("60606060"))))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void editarCambiaElEnlace() throws Exception {
+
+        JsonNode creada = crearInstitucion("Colegio Viejo", "colegio-viejo", "70707070");
+        long id = creada.get("institucion").get("id").asLong();
+
+        mvc.perform(get("/api/v1/public/colegio-viejo/prueba")).andExpect(status().isOk());
+
+        mvc.perform(put("/api/v1/superadmin/instituciones/" + id).header("Authorization", tokenSa)
+                        .contentType(MediaType.APPLICATION_JSON).content(json(datosInstitucion("Colegio Nuevo", "colegio-nuevo"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enlace").value("http://localhost:5173/colegio-nuevo"));
+
+        mvc.perform(get("/api/v1/public/colegio-viejo/prueba")).andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/public/colegio-nuevo/prueba")).andExpect(status().isOk());
+    }
+
+    @Test
+    void usuarioDeColegioNoUsaLasRutasDelSuperadmin() throws Exception {
+
+        mvc.perform(get("/api/v1/superadmin/instituciones").header("Authorization", token(1L, 1L, "x", Rol.ADMIN)))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/superadmin/instituciones")).andExpect(status().isUnauthorized());
+    }
+}

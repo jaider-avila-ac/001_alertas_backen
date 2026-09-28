@@ -19,12 +19,20 @@ public final class TenantSupport {
             throw new IllegalStateException("No hay institucion en el contexto de la solicitud");
         }
 
-        usarTenant(em, institucionId);
+        fijarEnBaseDeDatos(em, institucionId);
         return institucionId;
     }
 
-    // para el superadmin, que trabaja sobre una institucion puntual
-    public static void usarTenant(EntityManager em, Long institucionId) {
+    // el superadmin no tiene institucion en el token, elige con cual trabajar.
+    // se deja en el contexto para que los demas servicios usen requireTenant normal.
+    // el TenantInterceptor lo limpia al terminar la solicitud
+    public static void usarInstitucion(EntityManager em, Long institucionId) {
+
+        TenantContext.establecer(institucionId, null);
+        fijarEnBaseDeDatos(em, institucionId);
+    }
+
+    private static void fijarEnBaseDeDatos(EntityManager em, Long institucionId) {
 
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
             throw new IllegalStateException("requireTenant se debe llamar dentro de una transaccion");

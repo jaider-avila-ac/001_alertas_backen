@@ -30,6 +30,11 @@ public class JwtServiceImpl implements JwtService {
 
     @Override
     public String generar(Long usuarioId, Long institucionId, String slug, Rol rol) {
+        return generar(usuarioId, institucionId, slug, rol, false);
+    }
+
+    @Override
+    public String generar(Long usuarioId, Long institucionId, String slug, Rol rol, boolean debeCambiarContrasena) {
 
         Instant ahora = Instant.now();
 
@@ -40,6 +45,10 @@ public class JwtServiceImpl implements JwtService {
                 .claim("emi", ahora.toEpochMilli())
                 .issuedAt(Date.from(ahora))
                 .expiration(Date.from(ahora.plus(duracion)));
+
+        if (debeCambiarContrasena) {
+            builder.claim("cambiar", true);
+        }
 
         if (institucionId != null) {
             builder.claim("ins", institucionId);
@@ -82,11 +91,14 @@ public class JwtServiceImpl implements JwtService {
             institucionId = ins.longValue();
         }
 
+        boolean debeCambiar = Boolean.TRUE.equals(claims.get("cambiar", Boolean.class));
+
         return new UsuarioAutenticado(
                 Long.valueOf(claims.getSubject()),
                 institucionId,
                 claims.get("slug", String.class),
                 rol,
+                debeCambiar,
                 Instant.ofEpochMilli(emitido.longValue()));
     }
 

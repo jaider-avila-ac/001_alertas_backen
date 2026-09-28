@@ -8,6 +8,8 @@ public interface JwtService {
 
     String generar(Long usuarioId, Long institucionId, String slug, Rol rol);
 
+    String generar(Long usuarioId, Long institucionId, String slug, Rol rol, boolean debeCambiarContrasena);
+
     // null si el token esta vencido, mal firmado o trae datos raros
     UsuarioAutenticado leer(String token);
 

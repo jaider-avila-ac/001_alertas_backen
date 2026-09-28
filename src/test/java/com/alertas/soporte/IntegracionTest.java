@@ -33,6 +33,9 @@ public abstract class IntegracionTest {
             .withCommand("redis-server", "--requirepass", "clave-redis")
             .withExposedPorts(6379);
 
+    protected static final String SUPERADMIN_USUARIO = "sa-pruebas";
+    protected static final String SUPERADMIN_CONTRASENA = "clave-superadmin-1";
+
     static final String CLAVE_OWNER = "clave-owner";
     static final String CLAVE_APP = "clave-app";
 
@@ -55,6 +58,8 @@ public abstract class IntegracionTest {
         r.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
         r.add("spring.data.redis.password", () -> "clave-redis");
         r.add("app.jwt.secreto", () -> "clave-de-pruebas-que-tiene-mas-de-32-caracteres");
+        r.add("app.superadmin.usuario", () -> SUPERADMIN_USUARIO);
+        r.add("app.superadmin.contrasena", () -> SUPERADMIN_CONTRASENA);
     }
 
     @Autowired
@@ -74,6 +79,13 @@ public abstract class IntegracionTest {
 
     protected String token(Long usuarioId, Long institucionId, String slug, Rol rol) {
         return "Bearer " + jwtService.generar(usuarioId, institucionId, slug, rol);
+    }
+
+    // usuario con contrasena = documento, como los crea el sistema. devuelve el id
+    protected static Long crearUsuario(Long institucionId, String documento, Rol rol, String hash, boolean debeCambiar) {
+        return OWNER.queryForObject("""
+                INSERT INTO usuarios (usu_ins_id, usu_usuario, usu_contrasena_hash, usu_rol, usu_debe_cambiar_contrasena)
+                VALUES (?, ?, ?, ?, ?) RETURNING usu_id""", Long.class, institucionId, documento, hash, rol.name(), debeCambiar);
     }
 
     private static void prepararBaseDeDatos() {

@@ -11,15 +11,19 @@ public class LimiteIntentosServiceImpl implements LimiteIntentosService {
 
     private final StringRedisTemplate redis;
     private final int maxIntentos;
+    // en un colegio muchos estudiantes salen por la misma ip publica, por eso la ip aguanta mas
+    private final int maxIntentosIp;
     private final Duration bloqueo;
 
     public LimiteIntentosServiceImpl(
             StringRedisTemplate redis,
             @Value("${app.login.max-intentos}") int maxIntentos,
+            @Value("${app.login.max-intentos-ip}") int maxIntentosIp,
             @Value("${app.login.bloqueo-minutos}") long bloqueoMinutos) {
 
         this.redis = redis;
         this.maxIntentos = maxIntentos;
+        this.maxIntentosIp = maxIntentosIp;
         this.bloqueo = Duration.ofMinutes(bloqueoMinutos);
     }
 
@@ -41,7 +45,7 @@ public class LimiteIntentosServiceImpl implements LimiteIntentosService {
         if (valorIp != null) {
             int intentosIp = Integer.parseInt(valorIp);
 
-            if (intentosIp >= maxIntentos) {
+            if (intentosIp >= maxIntentosIp) {
                 return true;
             }
         }
