@@ -1,0 +1,32 @@
+# Base de datos del sistema. Se despliega por separado del backend:
+# esta carpeta (db/) es todo lo que necesita el servidor de base de datos.
+name: alertas-db
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: alertas-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+      TZ: America/Bogota
+    ports:
+      # En desarrollo 127.0.0.1. En producción, la IP privada que ve el servidor del backend.
+      - "${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Solo se ejecuta cuando el volumen está vacío (primer arranque)
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+    name: alertas_pgdata

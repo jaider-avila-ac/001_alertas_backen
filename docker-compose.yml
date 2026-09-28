@@ -1,0 +1,26 @@
+# Servicios del backend. La base de datos NO está aquí: se despliega por separado (ver db/).
+# El backend se conecta a ella con DB_URL, DB_USERNAME y DB_PASSWORD.
+# El servicio del backend se agrega en la fase 15.
+name: alertas
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: alertas-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  redisdata:
+    name: alertas_redisdata
