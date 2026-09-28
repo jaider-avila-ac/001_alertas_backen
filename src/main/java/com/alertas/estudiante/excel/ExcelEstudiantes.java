@@ -20,10 +20,17 @@ public final class ExcelEstudiantes {
     public static final String FAMILIAR_NOMBRE = "FAMILIAR_NOMBRE";
     public static final String FAMILIAR_PARENTESCO = "FAMILIAR_PARENTESCO";
     public static final String FAMILIAR_CELULAR = "FAMILIAR_CELULAR";
+    public static final String CORREO = "CORREO";
+    public static final String DIRECCION = "DIRECCION";
+    public static final String BARRIO = "BARRIO";
+    public static final String EPS = "EPS";
+    public static final String RH = "RH";
+    public static final String CONDICIONES_SALUD = "CONDICIONES_SALUD";
 
     public static final String[] COLUMNAS = {
             TIPO_DOC, NUMERO_DOCUMENTO, NOMBRES, APELLIDOS, GENERO, FECHA_NACIMIENTO, CELULAR,
-            GRADO, GRUPO, FAMILIAR_NOMBRE, FAMILIAR_PARENTESCO, FAMILIAR_CELULAR
+            GRADO, GRUPO, FAMILIAR_NOMBRE, FAMILIAR_PARENTESCO, FAMILIAR_CELULAR,
+            CORREO, DIRECCION, BARRIO, EPS, RH, CONDICIONES_SALUD
     };
 
     private static final String[] OBLIGATORIAS = {NUMERO_DOCUMENTO, GRADO};
@@ -42,9 +49,17 @@ public final class ExcelEstudiantes {
             {FAMILIAR_NOMBRE, "No", "Nombre de un familiar o acudiente"},
             {FAMILIAR_PARENTESCO, "Si hay familiar", "MADRE, PADRE, ACUDIENTE, ABUELO, HERMANO, TIO u OTRO"},
             {FAMILIAR_CELULAR, "No", "10 digitos, empieza por 3. A este numero llegan los SMS"},
+            {CORREO, "No", "Correo del estudiante"},
+            {DIRECCION, "No", ""},
+            {BARRIO, "No", ""},
+            {EPS, "No", "Nombre de la EPS. Importante en una emergencia"},
+            {RH, "No", "O+, O-, A+, A-, B+, B-, AB+ o AB-"},
+            {CONDICIONES_SALUD, "No", "Alergias, enfermedades o medicamentos (maximo 500 letras)"},
             {"", "", ""},
             {"Ejemplo", "", "TI | 1067123456 | Ana Maria | Rios Perez | F | 25/03/2012 | | 6 | A | Luz Perez | MADRE | 3001234567"},
-            {"Importante", "", "Si el estudiante ya existe (mismo documento) se actualizan sus datos y su grupo"},
+            {"Importante", "", "Si el estudiante ya existe (mismo documento) se actualizan sus datos y su grupo. "
+                    + "Una celda vacia no borra lo que ya tenia"},
+            {"Consejo", "", "Para el anio siguiente puedes exportar la lista, cambiar grado y grupo y subirla"},
     };
 
     private ExcelEstudiantes() {

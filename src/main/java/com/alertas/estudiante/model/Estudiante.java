@@ -66,6 +66,25 @@ public class Estudiante {
     @Column(name = "est_celular", length = 10)
     private String celular;
 
+    @Column(name = "est_correo", length = 120)
+    private String correo;
+
+    @Column(name = "est_direccion", length = 150)
+    private String direccion;
+
+    @Column(name = "est_barrio", length = 80)
+    private String barrio;
+
+    // salud, para emergencias. solo lo ven el admin y el psicorientador
+    @Column(name = "est_eps", length = 80)
+    private String eps;
+
+    @Column(name = "est_rh", length = 3)
+    private String rh;
+
+    @Column(name = "est_condiciones_salud", length = 500)
+    private String condicionesSalud;
+
     @Column(name = "est_sms_familiares", nullable = false)
     private boolean smsFamiliares = true;
 

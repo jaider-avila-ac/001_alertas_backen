@@ -1,5 +1,6 @@
 package com.alertas.estudiante.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -31,6 +32,25 @@ public record EstudianteRequest(
 
         @Pattern(regexp = "3[0-9]{9}", message = "El celular debe tener 10 digitos y empezar por 3")
         String celular,
+
+        @Email(message = "El correo no es valido")
+        @Size(max = 120, message = "El correo es muy largo")
+        String correo,
+
+        @Size(max = 150, message = "La direccion es muy larga")
+        String direccion,
+
+        @Size(max = 80, message = "El barrio es muy largo")
+        String barrio,
+
+        @Size(max = 80, message = "La EPS es muy larga")
+        String eps,
+
+        @Pattern(regexp = "(O|A|B|AB)[+-]", message = "El RH no es valido")
+        String rh,
+
+        @Size(max = 500, message = "Las condiciones de salud son muy largas (maximo 500 letras)")
+        String condicionesSalud,
 
         Long grupoId) {
 }

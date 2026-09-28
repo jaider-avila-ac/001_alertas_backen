@@ -105,8 +105,8 @@ class EstudianteTest extends IntegracionTest {
 
         JsonNode creado = leer(crearEstudiante(colegio, "1001", "José", sextoA)
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.ubicacionActual.gradoNombre").value("Sexto"))
-                .andExpect(jsonPath("$.ubicacionActual.grupoNombre").value("A"))
+                .andExpect(jsonPath("$.matriculaActual.gradoNombre").value("Sexto"))
+                .andExpect(jsonPath("$.matriculaActual.grupoNombre").value("A"))
                 .andExpect(jsonPath("$.debeCambiarContrasena").value(true))
                 .andReturn());
 
@@ -213,8 +213,10 @@ class EstudianteTest extends IntegracionTest {
         mvc.perform(patch("/api/v1/estudiantes/" + codigo + "/grupo").header("Authorization", colegio.admin())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"grupoId\":" + sextoB + "}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ubicacionActual.grupoNombre").value("B"))
-                .andExpect(jsonPath("$.historial.length()").value(1));
+                .andExpect(jsonPath("$.matriculaActual.grupoNombre").value("B"))
+                .andExpect(jsonPath("$.trayectoria.length()").value(1))
+                .andExpect(jsonPath("$.trayectoria[0].movimientos[0].grupoAnterior").value("A"))
+                .andExpect(jsonPath("$.trayectoria[0].movimientos[0].grupoNuevo").value("B"));
 
         // lo ubica ya en el anio siguiente: su grupo actual no cambia hasta que se active ese anio
         mvc.perform(post("/api/v1/anios-lectivos").header("Authorization", colegio.admin())
@@ -225,9 +227,11 @@ class EstudianteTest extends IntegracionTest {
         mvc.perform(patch("/api/v1/estudiantes/" + codigo + "/grupo").header("Authorization", colegio.admin())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"grupoId\":" + septimoA + "}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.ubicacionActual.grupoNombre").value("B"))
-                .andExpect(jsonPath("$.historial.length()").value(2))
-                .andExpect(jsonPath("$.historial[0].anio").value(ESTE_ANIO + 1));
+                .andExpect(jsonPath("$.matriculaActual.grupoNombre").value("B"))
+                .andExpect(jsonPath("$.trayectoria.length()").value(2))
+                .andExpect(jsonPath("$.trayectoria[0].anio").value(ESTE_ANIO + 1))
+                .andExpect(jsonPath("$.trayectoria[0].origen").value("PROMOCION"))
+                .andExpect(jsonPath("$.trayectoria[1].estado").value("PROMOVIDA"));
     }
 
     @Test

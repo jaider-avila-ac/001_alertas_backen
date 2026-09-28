@@ -40,7 +40,7 @@ DO $$
 BEGIN
     -- ubicar a un estudiante de A en un grupo de B
     BEGIN
-        INSERT INTO ubicaciones (ubi_ins_id, ubi_est_id, ubi_anl_id, ubi_grp_id) VALUES (900001, 920001, 940001, 960002);
+        INSERT INTO matriculas (mat_ins_id, mat_est_id, mat_anl_id, mat_grp_id) VALUES (900001, 920001, 940001, 960002);
         RAISE EXCEPTION 'FALLO: se permitio ubicar en un grupo de otra institucion';
     EXCEPTION WHEN foreign_key_violation THEN RAISE NOTICE 'OK  no se ubica en un grupo de otra institucion';
     END;
@@ -142,11 +142,29 @@ BEGIN
 END $$;
 
 -- 3. alertas y citas
-INSERT INTO ubicaciones (ubi_ins_id, ubi_est_id, ubi_anl_id, ubi_grp_id) VALUES (900001, 920001, 940001, 960001);
+INSERT INTO matriculas (mat_id, mat_ins_id, mat_est_id, mat_anl_id, mat_grp_id) OVERRIDING SYSTEM VALUE
+VALUES (980001, 900001, 920001, 940001, 960001);
+
+DO $$
+BEGIN
+    -- una matricula cerrada necesita fecha de cierre
+    BEGIN
+        UPDATE matriculas SET mat_estado = 'RETIRADA' WHERE mat_id = 980001;
+        RAISE EXCEPTION 'FALLO: matricula cerrada sin fecha de cierre';
+    EXCEPTION WHEN check_violation THEN RAISE NOTICE 'OK  matricula cerrada exige fecha';
+    END;
+
+    -- las matriculas no se borran
+    BEGIN
+        DELETE FROM matriculas WHERE mat_id = 980001;
+        RAISE EXCEPTION 'FALLO: se borro una matricula';
+    EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'OK  matriculas sin borrado';
+    END;
+END $$;
 
 INSERT INTO alertas (ale_ins_id, ale_codigo, ale_est_id, ale_origen, ale_reportada_por, ale_cat_id, ale_nivel,
-                     ale_descripcion, ale_anl_id, ale_grp_id)
-VALUES (900001, 'aleA', 920001, 'DOCENTE', 910004, 970001, 'CRITICO', 'Descripcion de prueba de la alerta', 940001, 960001);
+                     ale_descripcion, ale_anl_id, ale_grp_id, ale_mat_id)
+VALUES (900001, 'aleA', 920001, 'DOCENTE', 910004, 970001, 'CRITICO', 'Descripcion de prueba de la alerta', 940001, 960001, 980001);
 
 DO $$
 BEGIN
@@ -169,8 +187,8 @@ END $$;
 
 UPDATE alertas SET ale_estado = 'EN_PROCESO', ale_psi_id = 930001, ale_asignada_en = now();
 
-INSERT INTO citas (cit_ins_id, cit_codigo, cit_est_id, cit_psi_id, cit_inicio, cit_fin, cit_modalidad, cit_creada_por)
-VALUES (900001, 'citA', 920001, 930001, '2026-10-01 10:00-05', '2026-10-01 10:45-05', 'PRESENCIAL', 910003);
+INSERT INTO citas (cit_ins_id, cit_codigo, cit_est_id, cit_psi_id, cit_inicio, cit_fin, cit_modalidad, cit_creada_por, cit_mat_id, cit_grp_id)
+VALUES (900001, 'citA', 920001, 930001, '2026-10-01 10:00-05', '2026-10-01 10:45-05', 'PRESENCIAL', 910003, 980001, 960001);
 
 INSERT INTO citas_alertas (cia_ins_id, cia_cit_id, cia_ale_id, cia_est_id)
 SELECT 900001, c.cit_id, a.ale_id, 920001 FROM citas c, alertas a;
@@ -179,8 +197,8 @@ DO $$
 BEGIN
     -- segunda cita programada para el mismo estudiante
     BEGIN
-        INSERT INTO citas (cit_ins_id, cit_codigo, cit_est_id, cit_psi_id, cit_inicio, cit_fin, cit_modalidad, cit_creada_por)
-        VALUES (900001, 'citB', 920001, 930001, '2026-10-02 10:00-05', '2026-10-02 10:45-05', 'PRESENCIAL', 910003);
+        INSERT INTO citas (cit_ins_id, cit_codigo, cit_est_id, cit_psi_id, cit_inicio, cit_fin, cit_modalidad, cit_creada_por, cit_mat_id, cit_grp_id)
+        VALUES (900001, 'citB', 920001, 930001, '2026-10-02 10:00-05', '2026-10-02 10:45-05', 'PRESENCIAL', 910003, 980001, 960001);
         RAISE EXCEPTION 'FALLO: dos citas programadas para el mismo estudiante';
     EXCEPTION WHEN unique_violation THEN RAISE NOTICE 'OK  una sola cita programada por estudiante';
     END;
@@ -193,22 +211,24 @@ INSERT INTO usuarios (usu_id, usu_ins_id, usu_usuario, usu_contrasena_hash, usu_
 VALUES (910005, 900001, '1002', 'x', 'ESTUDIANTE');
 INSERT INTO estudiantes (est_id, est_ins_id, est_usu_id, est_codigo, est_codigo_qr, est_tipo_doc, est_nro_doc, est_nombres, est_apellidos)
 OVERRIDING SYSTEM VALUE VALUES (920003, 900001, 910005, 'estC', 'qrC', 'TI', '1002', 'Laura', 'Rios');
+INSERT INTO matriculas (mat_id, mat_ins_id, mat_est_id, mat_anl_id, mat_grp_id) OVERRIDING SYSTEM VALUE
+VALUES (980002, 900001, 920003, 940001, 960001);
 SET LOCAL ROLE alertas_app;
 SELECT set_config('app.current_tenant_id', '900001', true);
 
 DO $$
 BEGIN
     BEGIN
-        INSERT INTO citas (cit_ins_id, cit_codigo, cit_est_id, cit_psi_id, cit_inicio, cit_fin, cit_modalidad, cit_creada_por)
-        VALUES (900001, 'citC', 920003, 930001, '2026-10-01 10:30-05', '2026-10-01 11:15-05', 'VIRTUAL', 910003);
+        INSERT INTO citas (cit_ins_id, cit_codigo, cit_est_id, cit_psi_id, cit_inicio, cit_fin, cit_modalidad, cit_creada_por, cit_mat_id, cit_grp_id)
+        VALUES (900001, 'citC', 920003, 930001, '2026-10-01 10:30-05', '2026-10-01 11:15-05', 'VIRTUAL', 910003, 980002, 960001);
         RAISE EXCEPTION 'FALLO: se permitieron citas cruzadas del mismo psicorientador';
     EXCEPTION WHEN exclusion_violation THEN RAISE NOTICE 'OK  sin citas cruzadas';
     END;
 
     -- relacionar la cita de un estudiante con la alerta de otro
     BEGIN
-        INSERT INTO citas (cit_ins_id, cit_codigo, cit_est_id, cit_psi_id, cit_inicio, cit_fin, cit_modalidad, cit_creada_por)
-        VALUES (900001, 'citD', 920003, 930001, '2026-10-01 12:00-05', '2026-10-01 12:45-05', 'VIRTUAL', 910003);
+        INSERT INTO citas (cit_ins_id, cit_codigo, cit_est_id, cit_psi_id, cit_inicio, cit_fin, cit_modalidad, cit_creada_por, cit_mat_id, cit_grp_id)
+        VALUES (900001, 'citD', 920003, 930001, '2026-10-01 12:00-05', '2026-10-01 12:45-05', 'VIRTUAL', 910003, 980002, 960001);
         INSERT INTO citas_alertas (cia_ins_id, cia_cit_id, cia_ale_id, cia_est_id)
         SELECT 900001, (SELECT max(cit_id) FROM citas), ale_id, 920003 FROM alertas;
         RAISE EXCEPTION 'FALLO: cita de un estudiante con alerta de otro';

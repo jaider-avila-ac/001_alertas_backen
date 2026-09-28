@@ -202,7 +202,7 @@ class EstructuraTest extends IntegracionTest {
                 INSERT INTO estudiantes (est_ins_id, est_usu_id, est_codigo, est_codigo_qr, est_tipo_doc, est_nro_doc,
                                          est_nombres, est_apellidos)
                 VALUES (?, ?, 'codigoEst001', 'codigoQr0001', 'TI', '70001', 'Ana', 'Rios') RETURNING est_id""", Long.class, colegio.id(), usuario);
-        OWNER.update("INSERT INTO ubicaciones (ubi_ins_id, ubi_est_id, ubi_anl_id, ubi_grp_id) VALUES (?, ?, ?, ?)",
+        OWNER.update("INSERT INTO matriculas (mat_ins_id, mat_est_id, mat_anl_id, mat_grp_id) VALUES (?, ?, ?, ?)",
                 colegio.id(), estudiante, anio, grupoId);
 
         JsonNode grupos = obtener("/api/v1/grupos", colegio.admin());

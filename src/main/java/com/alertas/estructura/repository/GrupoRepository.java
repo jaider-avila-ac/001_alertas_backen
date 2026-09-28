@@ -26,14 +26,22 @@ public interface GrupoRepository extends JpaRepository<Grupo, Long> {
     @Query("SELECT count(g) FROM Grupo g WHERE g.grado.id = :gradoId AND g.anio.anio >= :desdeAnio")
     long contarDelGradoDesde(@Param("gradoId") Long gradoId, @Param("desdeAnio") int desdeAnio);
 
-    // estudiantes por grupo. ubicaciones todavia no tiene entidad (llega con estudiantes),
-    // por eso va en sql. devuelve [id del grupo, total]
-    @Query(value = "SELECT u.ubi_grp_id, count(*) FROM ubicaciones u WHERE u.ubi_anl_id = :anioId GROUP BY u.ubi_grp_id",
+    // estudiantes por grupo, sin los retirados. va en sql para no depender del modulo de matriculas.
+    // devuelve [id del grupo, total]
+    @Query(value = "SELECT m.mat_grp_id, count(*) FROM matriculas m "
+            + "WHERE m.mat_anl_id = :anioId AND m.mat_estado <> 'RETIRADA' GROUP BY m.mat_grp_id",
             nativeQuery = true)
     List<Object[]> contarEstudiantesPorGrupo(@Param("anioId") Long anioId);
 
-    @Query(value = "SELECT count(*) FROM ubicaciones u WHERE u.ubi_grp_id = :grupoId", nativeQuery = true)
+    @Query(value = "SELECT count(*) FROM matriculas m WHERE m.mat_grp_id = :grupoId AND m.mat_estado <> 'RETIRADA'",
+            nativeQuery = true)
     long contarEstudiantes(@Param("grupoId") Long grupoId);
+
+    // cualquier matricula (tambien retiradas) o movimiento que pase por el grupo: es historial
+    @Query(value = "SELECT (SELECT count(*) FROM matriculas m WHERE m.mat_grp_id = :grupoId) "
+            + "+ (SELECT count(*) FROM matricula_movimientos mv "
+            + "   WHERE mv.mov_grp_anterior_id = :grupoId OR mv.mov_grp_nuevo_id = :grupoId)", nativeQuery = true)
+    long contarHistorial(@Param("grupoId") Long grupoId);
 
     @Query(value = "SELECT count(*) FROM alertas a WHERE a.ale_grp_id = :grupoId", nativeQuery = true)
     long contarAlertas(@Param("grupoId") Long grupoId);

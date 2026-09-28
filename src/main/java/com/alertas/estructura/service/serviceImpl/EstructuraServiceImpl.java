@@ -337,6 +337,11 @@ public class EstructuraServiceImpl implements EstructuraService {
             throw ApiException.conflicto("El grupo tiene " + estudiantes + " estudiantes, cambialos de grupo primero");
         }
 
+        // estudiantes que pasaron por el grupo (retirados o movidos): es historial
+        if (grupoRepository.contarHistorial(grupoId) > 0) {
+            throw ApiException.conflicto("Por el grupo ya pasaron estudiantes, queda como historial y no se puede borrar");
+        }
+
         // las alertas guardan el grupo del momento, borrarlo romperia el historial
         if (grupoRepository.contarAlertas(grupoId) > 0) {
             throw ApiException.conflicto("El grupo tiene alertas registradas, no se puede borrar");

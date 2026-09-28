@@ -31,7 +31,7 @@ public interface EstructuraService {
     // null si la institucion no tiene anio activo
     AnioLectivoResponse anioActivo();
 
-    // falla si el anio ya paso (sus grupos y ubicaciones son historial)
+    // falla si el anio ya paso (sus grupos y matriculas son historial)
     AnioLectivoResponse buscarAnioEditable(Long anioId);
 
     // ---- grupos ----

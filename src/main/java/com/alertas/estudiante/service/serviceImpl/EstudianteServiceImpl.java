@@ -12,15 +12,14 @@ import com.alertas.estudiante.dto.EstudianteRequest;
 import com.alertas.estudiante.dto.FamiliarRequest;
 import com.alertas.estudiante.dto.FamiliarResponse;
 import com.alertas.estudiante.dto.QrResponse;
-import com.alertas.estudiante.dto.UbicacionResponse;
 import com.alertas.estudiante.model.Estudiante;
 import com.alertas.estudiante.model.Familiar;
-import com.alertas.estudiante.model.Ubicacion;
 import com.alertas.estudiante.repository.EstudianteFila;
 import com.alertas.estudiante.repository.EstudianteRepository;
 import com.alertas.estudiante.repository.FamiliarRepository;
-import com.alertas.estudiante.repository.UbicacionRepository;
 import com.alertas.estudiante.service.EstudianteService;
+import com.alertas.matricula.dto.MatriculaResponse;
+import com.alertas.matricula.service.MatriculaService;
 import com.alertas.shared.CodigoAleatorio;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.NombrePersona;
@@ -44,7 +43,7 @@ public class EstudianteServiceImpl implements EstudianteService {
     private static final int TAMANIO_MAXIMO = 50;
 
     private final EstudianteRepository repository;
-    private final UbicacionRepository ubicacionRepository;
+    private final MatriculaService matriculaService;
     private final FamiliarRepository familiarRepository;
     private final UsuarioService usuarioService;
     private final EstructuraService estructuraService;
@@ -54,7 +53,7 @@ public class EstudianteServiceImpl implements EstudianteService {
 
     public EstudianteServiceImpl(
             EstudianteRepository repository,
-            UbicacionRepository ubicacionRepository,
+            MatriculaService matriculaService,
             FamiliarRepository familiarRepository,
             UsuarioService usuarioService,
             EstructuraService estructuraService,
@@ -63,7 +62,7 @@ public class EstudianteServiceImpl implements EstudianteService {
             @Value("${app.url-front}") String urlFront) {
 
         this.repository = repository;
-        this.ubicacionRepository = ubicacionRepository;
+        this.matriculaService = matriculaService;
         this.familiarRepository = familiarRepository;
         this.usuarioService = usuarioService;
         this.estructuraService = estructuraService;
@@ -140,7 +139,7 @@ public class EstudianteServiceImpl implements EstudianteService {
         copiarDatos(request, estudiante);
         repository.save(estudiante);
 
-        ubicar(estudiante, grupo);
+        matriculaService.ubicar(estudiante.getId(), grupo, null);
 
         return armarDetalle(estudiante);
     }
@@ -167,15 +166,40 @@ public class EstudianteServiceImpl implements EstudianteService {
 
     @Override
     @Transactional
-    public EstudianteDetalleResponse cambiarGrupo(String codigo, Long grupoId) {
+    public EstudianteDetalleResponse cambiarGrupo(String codigo, Long grupoId, String motivo) {
 
         TenantSupport.requireTenant(em);
 
         Estudiante estudiante = obtener(codigo);
         GrupoResponse grupo = estructuraService.buscarGrupo(grupoId);
-        estructuraService.buscarAnioEditable(grupo.anioId());
 
-        ubicar(estudiante, grupo);
+        boolean volvio = matriculaService.ubicar(estudiante.getId(), grupo, motivo);
+
+        // estaba retirado: vuelve a poder entrar
+        if (volvio && !estudiante.getUsuario().isActivo()) {
+            usuarioService.cambiarEstadoPorAdmin(estudiante.getUsuario().getId(), true);
+            bitacoraService.registrar("REINGRESO", "estudiante", estudiante.getId(), vacioANull(motivo));
+        }
+
+        return armarDetalle(estudiante);
+    }
+
+    @Override
+    @Transactional
+    public EstudianteDetalleResponse retirar(String codigo, String motivo) {
+
+        TenantSupport.requireTenant(em);
+
+        Estudiante estudiante = obtener(codigo);
+        int cerradas = matriculaService.retirar(estudiante.getId(), motivo);
+
+        if (cerradas == 0) {
+            throw ApiException.conflicto("El estudiante no tiene una matricula activa");
+        }
+
+        usuarioService.cambiarEstadoPorAdmin(estudiante.getUsuario().getId(), false);
+        bitacoraService.registrar("RETIRO", "estudiante", estudiante.getId(), motivo.trim());
+
         return armarDetalle(estudiante);
     }
 
@@ -302,7 +326,7 @@ public class EstudianteServiceImpl implements EstudianteService {
         TenantSupport.requireTenant(em);
         estructuraService.buscarAnioEditable(anioId);
 
-        return repository.usuarioIdsSinUbicacion(anioId).size();
+        return repository.sinMatricula(anioId).size();
     }
 
     @Override
@@ -310,13 +334,22 @@ public class EstudianteServiceImpl implements EstudianteService {
     public int inactivarSinGrupo(Long anioId) {
 
         TenantSupport.requireTenant(em);
-        estructuraService.buscarAnioEditable(anioId);
+        AnioLectivoResponse anio = estructuraService.buscarAnioEditable(anioId);
 
-        List<Long> usuarioIds = repository.usuarioIdsSinUbicacion(anioId);
+        List<Long> estudianteIds = new ArrayList<>();
+        List<Long> usuarioIds = new ArrayList<>();
+
+        for (Object[] fila : repository.sinMatricula(anioId)) {
+            estudianteIds.add(((Number) fila[0]).longValue());
+            usuarioIds.add(((Number) fila[1]).longValue());
+        }
 
         if (usuarioIds.isEmpty()) {
             return 0;
         }
+
+        // la matricula que les quedo abierta del anio anterior se cierra; la de los graduados ya esta cerrada
+        matriculaService.cerrarActivas(estudianteIds, "No continuo en " + anio.anio());
 
         return usuarioService.cambiarEstadoMasivo(null, usuarioIds, false);
     }
@@ -377,7 +410,7 @@ public class EstudianteServiceImpl implements EstudianteService {
             throw ApiException.noEncontrado("Este QR no es valido o fue reemplazado por uno nuevo");
         }
 
-        UbicacionResponse actual = ubicacionActual(estudiante.getId());
+        MatriculaResponse actual = matriculaActual(matriculaService.trayectoria(estudiante.getId()));
         String grado = null;
         String grupo = null;
 
@@ -427,22 +460,6 @@ public class EstudianteServiceImpl implements EstudianteService {
         return estudiante;
     }
 
-    // una ubicacion por anio: si ya tiene en ese anio se cambia de grupo, si no se crea
-    private void ubicar(Estudiante estudiante, GrupoResponse grupo) {
-
-        Ubicacion ubicacion = ubicacionRepository.findByEstudianteIdAndAnioId(estudiante.getId(), grupo.anioId());
-
-        if (ubicacion == null) {
-            ubicacion = new Ubicacion();
-            ubicacion.setInstitucionId(estudiante.getInstitucionId());
-            ubicacion.setEstudianteId(estudiante.getId());
-            ubicacion.setAnioId(grupo.anioId());
-        }
-
-        ubicacion.setGrupoId(grupo.id());
-        ubicacionRepository.save(ubicacion);
-    }
-
     private void copiarDatos(EstudianteRequest request, Estudiante estudiante) {
 
         estudiante.setTipoDoc(request.tipoDoc());
@@ -452,19 +469,17 @@ public class EstudianteServiceImpl implements EstudianteService {
         estudiante.setGenero(vacioANull(request.genero()));
         estudiante.setFechaNacimiento(request.fechaNacimiento());
         estudiante.setCelular(vacioANull(request.celular()));
+        estudiante.setCorreo(vacioANull(request.correo()));
+        estudiante.setDireccion(vacioANull(request.direccion()));
+        estudiante.setBarrio(vacioANull(request.barrio()));
+        estudiante.setEps(vacioANull(request.eps()));
+        estudiante.setRh(vacioANull(request.rh()));
+        estudiante.setCondicionesSalud(vacioANull(request.condicionesSalud()));
     }
 
     private EstudianteDetalleResponse armarDetalle(Estudiante estudiante) {
 
-        List<UbicacionResponse> historial = new ArrayList<>();
-
-        for (Object[] fila : ubicacionRepository.historial(estudiante.getId())) {
-            historial.add(new UbicacionResponse(
-                    ((Number) fila[0]).intValue(),
-                    (String) fila[1],
-                    (String) fila[2],
-                    ((Number) fila[3]).longValue()));
-        }
+        List<MatriculaResponse> trayectoria = matriculaService.trayectoria(estudiante.getId());
 
         List<FamiliarResponse> familiares = new ArrayList<>();
 
@@ -483,30 +498,26 @@ public class EstudianteServiceImpl implements EstudianteService {
                 estudiante.getGenero(),
                 estudiante.getFechaNacimiento(),
                 estudiante.getCelular(),
+                estudiante.getCorreo(),
+                estudiante.getDireccion(),
+                estudiante.getBarrio(),
+                estudiante.getEps(),
+                estudiante.getRh(),
+                estudiante.getCondicionesSalud(),
                 estudiante.isSmsFamiliares(),
                 usuario.isActivo(),
                 usuario.isDebeCambiarContrasena(),
-                ubicacionActual(estudiante.getId()),
-                historial,
+                matriculaActual(trayectoria),
+                trayectoria,
                 familiares);
     }
 
-    // la del anio activo, null si no esta ubicado
-    private UbicacionResponse ubicacionActual(Long estudianteId) {
+    // la del anio activo, null si no tiene
+    private MatriculaResponse matriculaActual(List<MatriculaResponse> trayectoria) {
 
-        AnioLectivoResponse activo = estructuraService.anioActivo();
-
-        if (activo == null) {
-            return null;
-        }
-
-        for (Object[] fila : ubicacionRepository.historial(estudianteId)) {
-            if (((Number) fila[0]).intValue() == activo.anio()) {
-                return new UbicacionResponse(
-                        activo.anio(),
-                        (String) fila[1],
-                        (String) fila[2],
-                        ((Number) fila[3]).longValue());
+        for (MatriculaResponse matricula : trayectoria) {
+            if (matricula.anioActivo()) {
+                return matricula;
             }
         }
 
@@ -515,7 +526,7 @@ public class EstudianteServiceImpl implements EstudianteService {
 
     private QrResponse armarQr(Estudiante estudiante) {
 
-        UbicacionResponse actual = ubicacionActual(estudiante.getId());
+        MatriculaResponse actual = matriculaActual(matriculaService.trayectoria(estudiante.getId()));
         String grado = null;
         String grupo = null;
 

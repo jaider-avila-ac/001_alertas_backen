@@ -206,7 +206,7 @@ class ImportacionEstudiantesTest extends IntegracionTest {
     void exportarDevuelveUnExcel() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "imp-exportar", "86860000");
-        byte[] archivo = excel(new String[] {"TI", "9201", "Ana", "Rios", "", "", "", "6", "A", "", "", ""});
+        byte[] archivo = excel(new String[] {"TI", "9201", "Ana", "Rios", "F", "", "", "6", "A", "Luz Rios", "MADRE", "3001112233"});
         String token = leer(vistaPrevia(colegio, archivo).andReturn()).get("token").asText();
         confirmar(colegio, token).andExpect(status().isOk());
 
@@ -214,10 +214,41 @@ class ImportacionEstudiantesTest extends IntegracionTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsByteArray();
 
+        // las mismas columnas de la plantilla: sirve de base para el anio siguiente
         try (Workbook libro = new XSSFWorkbook(new ByteArrayInputStream(exportado))) {
+            Row encabezado = libro.getSheetAt(0).getRow(0);
+            for (int i = 0; i < ENCABEZADO.length; i++) {
+                assertThat(encabezado.getCell(i).getStringCellValue()).isEqualTo(ENCABEZADO[i]);
+            }
             Row fila = libro.getSheetAt(0).getRow(1);
             assertThat(fila.getCell(1).getStringCellValue()).isEqualTo("9201");
-            assertThat(fila.getCell(4).getStringCellValue()).isEqualTo("Sexto");
+            assertThat(fila.getCell(4).getStringCellValue()).isEqualTo("F");
+            assertThat(fila.getCell(7).getStringCellValue()).isEqualTo("Sexto");
+            assertThat(fila.getCell(10).getStringCellValue()).isEqualTo("MADRE");
         }
+
+        // subir el mismo archivo exportado funciona
+        String otro = leer(vistaPrevia(colegio, exportado).andExpect(status().isOk()).andReturn()).get("token").asText();
+        confirmar(colegio, otro).andExpect(jsonPath("$.actualizados").value(1));
+    }
+
+    @Test
+    void unaCeldaVaciaNoBorraLoQueYaTenia() throws Exception {
+
+        Colegio colegio = crearColegioCompleto(mvc, mapper, "imp-vacias", "87870000");
+
+        byte[] primero = excel(new String[] {"TI", "9301", "Ana", "Rios", "F", "25/03/2012", "3001112233", "6", "A", "", "", ""});
+        confirmar(colegio, leer(vistaPrevia(colegio, primero).andReturn()).get("token").asText()).andExpect(status().isOk());
+
+        // segunda carga sin genero, fecha ni celular
+        byte[] segundo = excel(new String[] {"TI", "9301", "Ana", "Rios", "", "", "", "6", "A", "", "", ""});
+        confirmar(colegio, leer(vistaPrevia(colegio, segundo).andReturn()).get("token").asText()).andExpect(status().isOk());
+
+        String genero = OWNER.queryForObject("SELECT est_genero FROM estudiantes WHERE est_ins_id = ? AND est_nro_doc = '9301'",
+                String.class, colegio.id());
+        String celular = OWNER.queryForObject("SELECT est_celular FROM estudiantes WHERE est_ins_id = ? AND est_nro_doc = '9301'",
+                String.class, colegio.id());
+        assertThat(genero).isEqualTo("F");
+        assertThat(celular).isEqualTo("3001112233");
     }
 }

@@ -15,5 +15,11 @@ public record FilaImportada(
         String grupoNombre,
         String familiarNombres,
         String familiarParentesco,
-        String familiarCelular) {
+        String familiarCelular,
+        String correo,
+        String direccion,
+        String barrio,
+        String eps,
+        String rh,
+        String condicionesSalud) {
 }

@@ -14,12 +14,11 @@ import com.alertas.estudiante.dto.VistaPreviaImportacionResponse;
 import com.alertas.estudiante.excel.ExcelEstudiantes;
 import com.alertas.estudiante.model.Estudiante;
 import com.alertas.estudiante.model.Familiar;
-import com.alertas.estudiante.model.Ubicacion;
 import com.alertas.estudiante.repository.EstudianteFila;
 import com.alertas.estudiante.repository.EstudianteRepository;
 import com.alertas.estudiante.repository.FamiliarRepository;
-import com.alertas.estudiante.repository.UbicacionRepository;
 import com.alertas.estudiante.service.ImportacionEstudiantesService;
+import com.alertas.matricula.service.MatriculaService;
 import com.alertas.shared.CodigoAleatorio;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.exception.ApiException;
@@ -62,6 +61,8 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
             Set.of("MADRE", "PADRE", "ACUDIENTE", "ABUELO", "HERMANO", "TIO", "OTRO");
     private static final Pattern DOCUMENTO = Pattern.compile("[A-Za-z0-9]{3,20}");
     private static final Pattern CELULAR = Pattern.compile("3[0-9]{9}");
+    private static final Pattern CORREO = Pattern.compile("[^@\\s]+@[^@\\s]+\\.[^@\\s]+");
+    private static final Set<String> RH = Set.of("O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-");
 
     // nombres de grado que la gente escribe distinto al catalogo
     private static final Map<String, Integer> OTROS_NOMBRES_GRADO = Map.of(
@@ -71,7 +72,7 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
             "preescolar", 0);
 
     private final EstudianteRepository estudianteRepository;
-    private final UbicacionRepository ubicacionRepository;
+    private final MatriculaService matriculaService;
     private final FamiliarRepository familiarRepository;
     private final UsuarioService usuarioService;
     private final EstructuraService estructuraService;
@@ -82,7 +83,7 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
 
     public ImportacionEstudiantesServiceImpl(
             EstudianteRepository estudianteRepository,
-            UbicacionRepository ubicacionRepository,
+            MatriculaService matriculaService,
             FamiliarRepository familiarRepository,
             UsuarioService usuarioService,
             EstructuraService estructuraService,
@@ -92,7 +93,7 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
             EntityManager em) {
 
         this.estudianteRepository = estudianteRepository;
-        this.ubicacionRepository = ubicacionRepository;
+        this.matriculaService = matriculaService;
         this.familiarRepository = familiarRepository;
         this.usuarioService = usuarioService;
         this.estructuraService = estructuraService;
@@ -224,6 +225,12 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
         String famNombre = datos.getOrDefault(ExcelEstudiantes.FAMILIAR_NOMBRE, "");
         String famParentesco = datos.getOrDefault(ExcelEstudiantes.FAMILIAR_PARENTESCO, "").toUpperCase();
         String famCelular = datos.getOrDefault(ExcelEstudiantes.FAMILIAR_CELULAR, "").replace(" ", "");
+        String correo = datos.getOrDefault(ExcelEstudiantes.CORREO, "");
+        String direccion = datos.getOrDefault(ExcelEstudiantes.DIRECCION, "");
+        String barrio = datos.getOrDefault(ExcelEstudiantes.BARRIO, "");
+        String eps = datos.getOrDefault(ExcelEstudiantes.EPS, "");
+        String rh = datos.getOrDefault(ExcelEstudiantes.RH, "").toUpperCase().replace(" ", "");
+        String salud = datos.getOrDefault(ExcelEstudiantes.CONDICIONES_SALUD, "");
 
         if (!TIPOS_DOC.contains(tipoDoc)) {
             problemas.add("tipo de documento no valido (RC, TI, CC, CE o PPT)");
@@ -273,6 +280,25 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
             }
         }
 
+        if (!correo.isEmpty() && (correo.length() > 120 || !CORREO.matcher(correo).matches())) {
+            problemas.add("correo no valido");
+        }
+        if (direccion.length() > 150) {
+            problemas.add("la direccion es muy larga");
+        }
+        if (barrio.length() > 80) {
+            problemas.add("el barrio es muy largo");
+        }
+        if (eps.length() > 80) {
+            problemas.add("la EPS es muy larga");
+        }
+        if (!rh.isEmpty() && !RH.contains(rh)) {
+            problemas.add("RH no valido (O+, O-, A+, A-, B+, B-, AB+ o AB-)");
+        }
+        if (salud.length() > 500) {
+            problemas.add("las condiciones de salud son muy largas (maximo 500 letras)");
+        }
+
         if (!problemas.isEmpty()) {
             return null;
         }
@@ -291,7 +317,13 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
                 grupo,
                 vacioANull(famNombre),
                 vacioANull(famParentesco),
-                vacioANull(famCelular));
+                vacioANull(famCelular),
+                vacioANull(correo),
+                vacioANull(direccion),
+                vacioANull(barrio),
+                vacioANull(eps),
+                vacioANull(rh),
+                vacioANull(salud));
     }
 
     // ---------------------------------------------------------------- confirmar
@@ -307,9 +339,9 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
         AnioLectivoResponse anio = estructuraService.buscarAnioEditable(guardada.anioId());
 
         // grupos que faltan
-        Map<String, Long> grupos = new HashMap<>();
+        Map<String, GrupoResponse> grupos = new HashMap<>();
         for (GrupoResponse grupo : estructuraService.listarGrupos(anio.id())) {
-            grupos.put(claveGrupo(grupo.gradoId(), grupo.nombre()), grupo.id());
+            grupos.put(claveGrupo(grupo.gradoId(), grupo.nombre()), grupo);
         }
 
         int gruposCreados = 0;
@@ -317,7 +349,7 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
             String clave = claveGrupo(fila.gradoId(), fila.grupoNombre());
             if (!grupos.containsKey(clave)) {
                 GrupoResponse nuevo = estructuraService.crearGrupo(anio.id(), fila.gradoId(), fila.grupoNombre().toUpperCase());
-                grupos.put(clave, nuevo.id());
+                grupos.put(clave, nuevo);
                 gruposCreados++;
             }
         }
@@ -343,18 +375,6 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
         // falla con conflicto si entre la vista previa y ahora alguien uso uno de estos documentos
         Map<String, Usuario> usuariosNuevos = usuarioService.crearVarios(documentosNuevos, Rol.ESTUDIANTE);
 
-        List<Long> idsExistentes = new ArrayList<>();
-        for (Estudiante estudiante : existentes.values()) {
-            idsExistentes.add(estudiante.getId());
-        }
-
-        Map<Long, Ubicacion> ubicaciones = new HashMap<>();
-        if (!idsExistentes.isEmpty()) {
-            for (Ubicacion ubicacion : ubicacionRepository.findByEstudianteIdInAndAnioId(idsExistentes, anio.id())) {
-                ubicaciones.put(ubicacion.getEstudianteId(), ubicacion);
-            }
-        }
-
         int creados = 0;
         int actualizados = 0;
 
@@ -376,24 +396,39 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
             estudiante.setNroDoc(fila.nroDoc());
             estudiante.setNombres(fila.nombres());
             estudiante.setApellidos(fila.apellidos());
-            estudiante.setGenero(fila.genero());
+            // una celda vacia no borra lo que ya tenia
+            if (fila.genero() != null) {
+                estudiante.setGenero(fila.genero());
+            }
             if (fila.fechaNacimiento() != null) {
                 estudiante.setFechaNacimiento(LocalDate.parse(fila.fechaNacimiento()));
             }
             if (fila.celular() != null) {
                 estudiante.setCelular(fila.celular());
             }
+            if (fila.correo() != null) {
+                estudiante.setCorreo(fila.correo());
+            }
+            if (fila.direccion() != null) {
+                estudiante.setDireccion(fila.direccion());
+            }
+            if (fila.barrio() != null) {
+                estudiante.setBarrio(fila.barrio());
+            }
+            if (fila.eps() != null) {
+                estudiante.setEps(fila.eps());
+            }
+            if (fila.rh() != null) {
+                estudiante.setRh(fila.rh());
+            }
+            if (fila.condicionesSalud() != null) {
+                estudiante.setCondicionesSalud(fila.condicionesSalud());
+            }
             estudianteRepository.save(estudiante);
 
-            Ubicacion ubicacion = ubicaciones.get(estudiante.getId());
-            if (ubicacion == null) {
-                ubicacion = new Ubicacion();
-                ubicacion.setInstitucionId(institucionId);
-                ubicacion.setEstudianteId(estudiante.getId());
-                ubicacion.setAnioId(anio.id());
-            }
-            ubicacion.setGrupoId(grupos.get(claveGrupo(fila.gradoId(), fila.grupoNombre())));
-            ubicacionRepository.save(ubicacion);
+            // matricula del anio: nueva, promocion o repite segun el anio anterior; si ya tenia, se mueve
+            GrupoResponse grupo = grupos.get(claveGrupo(fila.gradoId(), fila.grupoNombre()));
+            matriculaService.ubicar(estudiante.getId(), grupo, "Importacion de Excel");
 
             if (fila.familiarNombres() != null) {
                 guardarFamiliar(institucionId, estudiante, fila);
@@ -447,20 +482,71 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
         Page<EstudianteFila> page = estudianteRepository.buscar(
                 anioId, busqueda, gradoId, grupoId, activo, false, Pageable.unpaged());
 
-        String[] columnas = {
-                ExcelEstudiantes.TIPO_DOC, ExcelEstudiantes.NUMERO_DOCUMENTO, ExcelEstudiantes.NOMBRES,
-                ExcelEstudiantes.APELLIDOS, ExcelEstudiantes.GRADO, ExcelEstudiantes.GRUPO, "ESTADO"
-        };
+        // mismas columnas de la plantilla (mas el estado): el archivo sirve de base para el anio siguiente
+        String[] columnas = new String[ExcelEstudiantes.COLUMNAS.length + 1];
+        for (int i = 0; i < ExcelEstudiantes.COLUMNAS.length; i++) {
+            columnas[i] = ExcelEstudiantes.COLUMNAS[i];
+        }
+        columnas[ExcelEstudiantes.COLUMNAS.length] = "ESTADO";
 
-        List<String[]> filas = new ArrayList<>();
+        List<String> documentos = new ArrayList<>();
         for (EstudianteFila fila : page.getContent()) {
+            documentos.add(fila.getNroDoc());
+        }
+
+        Map<String, Estudiante> completos = new HashMap<>();
+        List<Long> ids = new ArrayList<>();
+        if (!documentos.isEmpty()) {
+            for (Estudiante estudiante : estudianteRepository.buscarPorDocumentos(documentos)) {
+                completos.put(estudiante.getNroDoc(), estudiante);
+                ids.add(estudiante.getId());
+            }
+        }
+
+        Map<Long, Familiar> primerFamiliar = new HashMap<>();
+        if (!ids.isEmpty()) {
+            for (Familiar familiar : familiarRepository.findByEstudianteIdInAndPosicion(ids, 1)) {
+                primerFamiliar.put(familiar.getEstudiante().getId(), familiar);
+            }
+        }
+
+        DateTimeFormatter formatoFecha = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        List<String[]> filas = new ArrayList<>();
+
+        for (EstudianteFila fila : page.getContent()) {
+            Estudiante estudiante = completos.get(fila.getNroDoc());
+            Familiar familiar = primerFamiliar.get(estudiante.getId());
+
+            String fecha = null;
+            if (estudiante.getFechaNacimiento() != null) {
+                fecha = estudiante.getFechaNacimiento().format(formatoFecha);
+            }
+
+            String familiarNombre = null;
+            String familiarParentesco = null;
+            String familiarCelular = null;
+            if (familiar != null) {
+                familiarNombre = familiar.getNombres();
+                if (familiar.getApellidos() != null) {
+                    familiarNombre = familiarNombre + " " + familiar.getApellidos();
+                }
+                familiarParentesco = familiar.getParentesco();
+                familiarCelular = familiar.getCelular();
+            }
+
             String estado = "Inactivo";
             if (Boolean.TRUE.equals(fila.getActivo())) {
                 estado = "Activo";
             }
+
             filas.add(new String[] {
-                    fila.getTipoDoc(), fila.getNroDoc(), fila.getNombres(), fila.getApellidos(),
-                    fila.getGradoNombre(), fila.getGrupoNombre(), estado
+                    estudiante.getTipoDoc(), estudiante.getNroDoc(), estudiante.getNombres(), estudiante.getApellidos(),
+                    estudiante.getGenero(), fecha, estudiante.getCelular(),
+                    fila.getGradoNombre(), fila.getGrupoNombre(),
+                    familiarNombre, familiarParentesco, familiarCelular,
+                    estudiante.getCorreo(), estudiante.getDireccion(), estudiante.getBarrio(),
+                    estudiante.getEps(), estudiante.getRh(), estudiante.getCondicionesSalud(),
+                    estado
             });
         }
 

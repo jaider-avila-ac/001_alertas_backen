@@ -23,7 +23,11 @@ public interface EstudianteService {
 
     EstudianteDetalleResponse actualizar(String codigo, EstudianteRequest request);
 
-    EstudianteDetalleResponse cambiarGrupo(String codigo, Long grupoId);
+    // matricula en el anio del grupo o lo mueve de grupo (queda el movimiento). si estaba retirado vuelve
+    EstudianteDetalleResponse cambiarGrupo(String codigo, Long grupoId, String motivo);
+
+    // cierra sus matriculas activas como retiradas e inactiva su usuario
+    EstudianteDetalleResponse retirar(String codigo, String motivo);
 
     EstudianteDetalleResponse guardarFamiliares(String codigo, List<FamiliarRequest> familiares);
 
@@ -37,7 +41,7 @@ public interface EstudianteService {
 
     int cambiarEstadoMasivo(EstadoMasivoEstudiantesRequest request);
 
-    // al abrir un anio nuevo: los que no quedaron en ningun grupo (retirados o graduados)
+    // al abrir un anio nuevo: los que no tienen matricula en ese anio (se retiraron o se graduaron)
     long contarSinGrupo(Long anioId);
 
     int inactivarSinGrupo(Long anioId);

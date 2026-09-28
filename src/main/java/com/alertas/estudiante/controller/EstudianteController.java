@@ -1,6 +1,5 @@
 package com.alertas.estudiante.controller;
 
-import com.alertas.estudiante.dto.CambiarGrupoRequest;
 import com.alertas.estudiante.dto.EstadoMasivoEstudiantesRequest;
 import com.alertas.estudiante.dto.EstudianteDetalleResponse;
 import com.alertas.estudiante.dto.EstudianteFilaResponse;
@@ -10,6 +9,8 @@ import com.alertas.estudiante.dto.InactivarSinGrupoRequest;
 import com.alertas.estudiante.dto.QrResponse;
 import com.alertas.estudiante.dto.TotalResponse;
 import com.alertas.estudiante.service.EstudianteService;
+import com.alertas.matricula.dto.RetirarRequest;
+import com.alertas.matricula.dto.UbicarRequest;
 import com.alertas.shared.dto.CambiarActivoRequest;
 import com.alertas.shared.dto.PageResponse;
 import com.alertas.shared.idempotencia.Idempotente;
@@ -84,10 +85,17 @@ public class EstudianteController {
         return estudianteService.actualizar(codigo, request);
     }
 
+    // matricular o cambiar de grupo (tambien de grado). queda el movimiento en su trayectoria
     @PatchMapping("/{codigo}/grupo")
     @PreAuthorize("hasRole('ADMIN')")
-    public EstudianteDetalleResponse cambiarGrupo(@PathVariable String codigo, @Valid @RequestBody CambiarGrupoRequest request) {
-        return estudianteService.cambiarGrupo(codigo, request.grupoId());
+    public EstudianteDetalleResponse cambiarGrupo(@PathVariable String codigo, @Valid @RequestBody UbicarRequest request) {
+        return estudianteService.cambiarGrupo(codigo, request.grupoId(), request.motivo());
+    }
+
+    @PostMapping("/{codigo}/retirar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public EstudianteDetalleResponse retirar(@PathVariable String codigo, @Valid @RequestBody RetirarRequest request) {
+        return estudianteService.retirar(codigo, request.motivo());
     }
 
     @PutMapping("/{codigo}/familiares")
