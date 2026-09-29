@@ -17,6 +17,8 @@ public record InstitucionResponse(
         boolean activa,
         boolean accesoEstudiantes,
         boolean smsActivo,
+        boolean valoracionesActivas,
+        int valoracionesDias,
         OffsetDateTime inactivadaEn,
         String motivoInactivacion,
         OffsetDateTime creadoEn) {
@@ -37,6 +39,8 @@ public record InstitucionResponse(
                 institucion.isActiva(),
                 institucion.isAccesoEstudiantes(),
                 institucion.isSmsActivo(),
+                institucion.isValoracionesActivas(),
+                institucion.getValoracionesDias(),
                 institucion.getInactivadaEn(),
                 institucion.getMotivoInactivacion(),
                 institucion.getCreadoEn());

@@ -156,6 +156,7 @@ public class AuthServiceImpl implements AuthService {
                 apellidos,
                 usuario.getRol(),
                 debeCambiar,
-                institucion);
+                institucion,
+                institucionService.valoracionesActivas(usuario.getInstitucionId()));
     }
 }

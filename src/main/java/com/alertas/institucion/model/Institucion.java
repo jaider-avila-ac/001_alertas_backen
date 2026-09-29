@@ -60,6 +60,14 @@ public class Institucion {
     @Column(name = "ins_sms_activo", nullable = false)
     private boolean smsActivo = false;
 
+    // valoraciones de rutina: las enciende el admin del colegio
+    @Column(name = "ins_valoraciones_activas", nullable = false)
+    private boolean valoracionesActivas = false;
+
+    // cada cuantos dias le toca de nuevo a un estudiante
+    @Column(name = "ins_valoraciones_dias", nullable = false)
+    private int valoracionesDias = 180;
+
     @Column(name = "ins_inactivada_en")
     @Setter(AccessLevel.NONE)
     private OffsetDateTime inactivadaEn;

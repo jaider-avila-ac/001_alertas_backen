@@ -1,6 +1,7 @@
 package com.alertas.atencion.dto;
 
 import com.alertas.cita.dto.CitaResponse;
+import com.alertas.valoracion.dto.ValoracionResponse;
 import java.util.List;
 
 // todo lo del estudiante para el psicorientador. psicorientador: quien atiende sus alertas activas (null si nadie).
@@ -17,5 +18,6 @@ public record ExpedienteResponse(
         boolean sinTomar,
         String citaProgramada,
         List<AlertaExpedienteResponse> alertas,
-        List<CitaResponse> citas) {
+        List<CitaResponse> citas,
+        List<ValoracionResponse> valoraciones) {
 }

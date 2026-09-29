@@ -23,7 +23,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-// leer y escribir excel para las importaciones (estudiantes, personal). aqui no hay reglas de negocio
+// leer y escribir excel: importaciones (estudiantes, personal) y reportes. aqui no hay reglas de negocio
 public final class ArchivoExcel {
 
     // en cada fila leida, el numero de fila como lo ve el usuario en excel
@@ -84,7 +84,46 @@ public final class ArchivoExcel {
         }
     }
 
-    private static void escribirEncabezado(Workbook libro, Sheet hoja, String[] columnas) {
+    // reporte de varias hojas (estadisticas). aqui los numeros se dejan como numero para poder sumarlos
+    public static byte[] reporte(List<HojaExcel> hojas) {
+
+        try (Workbook libro = new XSSFWorkbook()) {
+
+            CellStyle estiloEncabezado = estiloEncabezado(libro);
+
+            for (HojaExcel datos : hojas) {
+                Sheet hoja = libro.createSheet(datos.nombre());
+
+                Row encabezado = hoja.createRow(0);
+                for (int i = 0; i < datos.columnas().length; i++) {
+                    Cell celda = encabezado.createCell(i);
+                    celda.setCellValue(datos.columnas()[i]);
+                    celda.setCellStyle(estiloEncabezado);
+                    hoja.setColumnWidth(i, 28 * 256);
+                }
+
+                int numero = 1;
+                for (Object[] valores : datos.filas()) {
+                    Row fila = hoja.createRow(numero);
+                    for (int j = 0; j < valores.length; j++) {
+                        if (valores[j] instanceof Number) {
+                            fila.createCell(j).setCellValue(((Number) valores[j]).doubleValue());
+                        } else if (valores[j] != null) {
+                            fila.createCell(j).setCellValue(String.valueOf(valores[j]));
+                        }
+                    }
+                    numero++;
+                }
+                hoja.createFreezePane(0, 1);
+            }
+
+            return aBytes(libro);
+        } catch (IOException e) {
+            throw new IllegalStateException("No se pudo generar el excel", e);
+        }
+    }
+
+    private static CellStyle estiloEncabezado(Workbook libro) {
 
         Font negrita = libro.createFont();
         negrita.setBold(true);
@@ -94,6 +133,12 @@ public final class ArchivoExcel {
         estilo.setFont(negrita);
         estilo.setFillForegroundColor(IndexedColors.ROSE.getIndex());
         estilo.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return estilo;
+    }
+
+    private static void escribirEncabezado(Workbook libro, Sheet hoja, String[] columnas) {
+
+        CellStyle estilo = estiloEncabezado(libro);
 
         // todo como texto: si no, excel convierte los documentos largos a 1,07E+09
         CellStyle texto = libro.createCellStyle();

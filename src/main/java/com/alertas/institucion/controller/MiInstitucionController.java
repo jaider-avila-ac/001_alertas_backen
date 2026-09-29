@@ -2,6 +2,7 @@ package com.alertas.institucion.controller;
 
 import com.alertas.institucion.dto.InstitucionPublicaResponse;
 import com.alertas.institucion.dto.InstitucionResponse;
+import com.alertas.institucion.dto.ValoracionesConfigRequest;
 import com.alertas.institucion.service.InstitucionService;
 import com.alertas.shared.dto.CambiarActivoRequest;
 import com.alertas.shared.interceptor.TenantContext;
@@ -38,5 +39,11 @@ public class MiInstitucionController {
     @PreAuthorize("hasRole('ADMIN')")
     public InstitucionResponse cambiarAccesoEstudiantes(@Valid @RequestBody CambiarActivoRequest request) {
         return institucionService.cambiarAccesoEstudiantes(request.activo());
+    }
+
+    @PatchMapping("/api/v1/institucion/valoraciones")
+    @PreAuthorize("hasRole('ADMIN')")
+    public InstitucionResponse cambiarValoraciones(@Valid @RequestBody ValoracionesConfigRequest request) {
+        return institucionService.cambiarValoraciones(request.activas(), request.dias());
     }
 }

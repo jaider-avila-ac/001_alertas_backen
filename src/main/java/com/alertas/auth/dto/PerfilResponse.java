@@ -9,5 +9,6 @@ public record PerfilResponse(
         String apellidos,
         Rol rol,
         boolean debeCambiarContrasena,
-        InstitucionPublicaResponse institucion) {
+        InstitucionPublicaResponse institucion,
+        boolean valoraciones) {
 }

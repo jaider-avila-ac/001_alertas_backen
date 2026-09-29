@@ -55,6 +55,13 @@ public interface InstitucionService {
 
     InstitucionResponse miInstitucion();
 
+    boolean valoracionesActivas(Long id);
+
+    int valoracionesDias(Long id);
+
     // el admin abre o cierra el acceso de todos los estudiantes (ej. vacaciones)
     InstitucionResponse cambiarAccesoEstudiantes(boolean activo);
+
+    // el admin enciende o apaga las valoraciones de rutina y dice cada cuantos dias
+    InstitucionResponse cambiarValoraciones(boolean activas, int dias);
 }

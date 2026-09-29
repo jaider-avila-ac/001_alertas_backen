@@ -347,6 +347,18 @@ public class InstitucionServiceImpl implements InstitucionService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public boolean valoracionesActivas(Long id) {
+        return obtener(id).isValoracionesActivas();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public int valoracionesDias(Long id) {
+        return obtener(id).getValoracionesDias();
+    }
+
+    @Override
     @Transactional
     public InstitucionResponse cambiarAccesoEstudiantes(boolean activo) {
 
@@ -363,6 +375,25 @@ public class InstitucionServiceImpl implements InstitucionService {
 
         // el interceptor revisa este dato en cada solicitud, al borrar la cache aplica de inmediato
         olvidarCache(institucionId, institucion.getSlug());
+        return InstitucionResponse.desde(institucion, urlFront);
+    }
+
+    @Override
+    @Transactional
+    public InstitucionResponse cambiarValoraciones(boolean activas, int dias) {
+
+        Long institucionId = TenantSupport.requireTenant(em);
+        Institucion institucion = obtener(institucionId);
+
+        institucion.setValoracionesActivas(activas);
+        institucion.setValoracionesDias(dias);
+
+        if (activas) {
+            bitacoraService.registrar("ACTIVAR_VALORACIONES", "institucion", institucionId, "cada " + dias + " dias");
+        } else {
+            bitacoraService.registrar("DESACTIVAR_VALORACIONES", "institucion", institucionId, null);
+        }
+
         return InstitucionResponse.desde(institucion, urlFront);
     }
 

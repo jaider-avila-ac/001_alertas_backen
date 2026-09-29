@@ -95,6 +95,19 @@ public class AlertaServiceImpl implements AlertaService {
         alerta.setLugar(vacioANull(request.lugar()));
         alerta.setPeligroInmediato(request.peligroInmediato());
 
+        // si la crea un psicorientador (por ejemplo tras una valoracion) ya la vio: no pasa por la bandeja,
+        // nace en proceso y es suya, salvo que otro psicorientador ya atienda al estudiante
+        if (UsuarioAutenticado.actual().rol() == Rol.PSICORIENTADOR) {
+            alerta.setEstado(Alerta.EN_PROCESO);
+            if (alerta.getPsicorientadorId() == null) {
+                PsicorientadorBasico yo = personalService.psicorientadorDeUsuario(UsuarioAutenticado.actual().id());
+                if (yo != null) {
+                    alerta.setPsicorientadorId(yo.id());
+                    alerta.setAsignadaEn(OffsetDateTime.now());
+                }
+            }
+        }
+
         repository.save(alerta);
         pegarACitaProgramada(alerta);
 

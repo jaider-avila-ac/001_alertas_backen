@@ -28,6 +28,7 @@ import com.alertas.personal.service.PersonalService;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.PageResponse;
 import com.alertas.shared.exception.ApiException;
+import com.alertas.valoracion.service.ValoracionService;
 import jakarta.persistence.EntityManager;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -54,6 +55,7 @@ public class AtencionServiceImpl implements AtencionService {
     private final CitaService citaService;
     private final BitacoraService bitacoraService;
     private final NotificacionService notificacionService;
+    private final ValoracionService valoracionService;
     private final EntityManager em;
 
     public AtencionServiceImpl(
@@ -64,6 +66,7 @@ public class AtencionServiceImpl implements AtencionService {
             CitaService citaService,
             BitacoraService bitacoraService,
             NotificacionService notificacionService,
+            ValoracionService valoracionService,
             EntityManager em) {
 
         this.alertaRepository = alertaRepository;
@@ -73,6 +76,7 @@ public class AtencionServiceImpl implements AtencionService {
         this.citaService = citaService;
         this.bitacoraService = bitacoraService;
         this.notificacionService = notificacionService;
+        this.valoracionService = valoracionService;
         this.em = em;
     }
 
@@ -413,7 +417,8 @@ public class AtencionServiceImpl implements AtencionService {
                 sinTomar,
                 programada,
                 alertas,
-                citas);
+                citas,
+                valoracionService.delEstudiante(estudiante.id(), conObservaciones));
     }
 
     // segun el driver, una fecha de sql nativo llega como Instant, OffsetDateTime o Timestamp
