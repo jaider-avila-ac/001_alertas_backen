@@ -30,6 +30,11 @@ public class EstadisticaServiceImpl implements EstadisticaService {
         {"LEVE", "Leve"}, {"MODERADO", "Moderado"}, {"ALTO", "Alto"}, {"CRITICO", "Critico"}};
     private static final String[][] GENEROS = {
         {"F", "Femenino"}, {"M", "Masculino"}, {"O", "Otro"}, {"N", "Sin dato"}};
+    // edad que tenia el estudiante cuando se creo la alerta
+    private static final String[][] EDADES = {
+        {"HASTA_8", "8 o menos"}, {"DE_9_A_11", "9 a 11"}, {"DE_12_A_14", "12 a 14"}, {"DE_15_A_17", "15 a 17"},
+        {"DESDE_18", "18 o mas"}};
+    private static final String[][] SIN_EDAD = {{"N", "Sin fecha de nacimiento"}};
     private static final String[][] ORIGENES = {
         {"DOCENTE", "Docente"}, {"PSICORIENTADOR", "Psicorientador"}, {"ADMIN", "Administrador"},
         {"ESTUDIANTE", "Estudiante (pidio ayuda)"}};
@@ -97,6 +102,11 @@ public class EstadisticaServiceImpl implements EstadisticaService {
             porPsicorientador.add(new PsicorientadorConteoResponse((String) fila[0], numero(fila[1]), numero(fila[2])));
         }
 
+        // los rangos siempre (tambien en 0) y al final los que no tienen fecha, solo si hay
+        List<Object[]> filasEdad = repository.porEdad(filtro, zona);
+        List<ConteoResponse> porEdad = enOrden(filasEdad, EDADES, true);
+        porEdad.addAll(enOrden(filasEdad, SIN_EDAD, false));
+
         return new EstadisticasResponse(
                 indicadores,
                 porMes(repository.porMes(filtro, zona)),
@@ -104,6 +114,7 @@ public class EstadisticaServiceImpl implements EstadisticaService {
                 enOrden(repository.porNivel(filtro, zona), NIVELES, true),
                 porGrupo,
                 enOrden(repository.porGenero(filtro, zona), GENEROS, false),
+                porEdad,
                 enOrden(repository.porOrigen(filtro, zona), ORIGENES, false),
                 porPsicorientador);
     }
@@ -148,6 +159,7 @@ public class EstadisticaServiceImpl implements EstadisticaService {
         hojas.add(hoja("Por nivel", "Nivel", resumen.porNivel()));
         hojas.add(hoja("Por grado y grupo", "Grupo", resumen.porGrupo()));
         hojas.add(hoja("Por genero", "Genero", resumen.porGenero()));
+        hojas.add(hoja("Por edad", "Edad (anios)", resumen.porEdad()));
         hojas.add(hoja("Por origen", "Quien la creo", resumen.porOrigen()));
 
         List<Object[]> psicorientadores = new ArrayList<>();

@@ -9,6 +9,7 @@ public record EstadisticasResponse(
         List<ConteoResponse> porNivel,
         List<ConteoResponse> porGrupo,
         List<ConteoResponse> porGenero,
+        List<ConteoResponse> porEdad,
         List<ConteoResponse> porOrigen,
         List<PsicorientadorConteoResponse> porPsicorientador) {
 }

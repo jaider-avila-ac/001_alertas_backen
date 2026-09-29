@@ -73,10 +73,12 @@ class EstadisticaTest extends IntegracionTest {
                 .andReturn()).get("id").asLong();
     }
 
-    private String crearEstudiante(Colegio colegio, Long grupo, String documento, String genero) throws Exception {
+    private String crearEstudiante(Colegio colegio, Long grupo, String documento, String genero, int edad) throws Exception {
 
+        String nacimiento = LocalDate.now().minusYears(edad).minusDays(20).toString();
         String body = "{\"tipoDoc\":\"TI\",\"nroDoc\":\"" + documento + "\",\"nombres\":\"Est" + documento + "\","
-                + "\"apellidos\":\"Prueba\",\"genero\":\"" + genero + "\",\"grupoId\":" + grupo + "}";
+                + "\"apellidos\":\"Prueba\",\"genero\":\"" + genero + "\",\"fechaNacimiento\":\"" + nacimiento + "\","
+                + "\"grupoId\":" + grupo + "}";
         return leer(mvc.perform(post("/api/v1/estudiantes").header("Authorization", colegio.admin())
                         .header("Idempotency-Key", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -116,8 +118,8 @@ class EstadisticaTest extends IntegracionTest {
         Long anio = anioActivo(colegio);
         Long grupoA = crearGrupo(colegio, anio, "A");
         Long grupoB = crearGrupo(colegio, anio, "B");
-        String ana = crearEstudiante(colegio, grupoA, "7171011", "F");
-        String beto = crearEstudiante(colegio, grupoB, "7171012", "M");
+        String ana = crearEstudiante(colegio, grupoA, "7171011", "F", 13);
+        String beto = crearEstudiante(colegio, grupoB, "7171012", "M", 16);
 
         JsonNode categorias = leer(mvc.perform(get("/api/v1/categorias").header("Authorization", colegio.admin())).andReturn());
         Long cat1 = categorias.get(0).get("id").asLong();
@@ -181,6 +183,11 @@ class EstadisticaTest extends IntegracionTest {
         assertThat(total(todo.get("porNivel"), "CRITICO")).isZero();
         assertThat(total(todo.get("porGenero"), "F")).isEqualTo(2);
         assertThat(total(todo.get("porGenero"), "M")).isEqualTo(2);
+        // edad al crear la alerta: ana 13, beto 16. los rangos salen aunque esten en 0; "sin fecha" solo si hay
+        assertThat(total(todo.get("porEdad"), "DE_12_A_14")).isEqualTo(2);
+        assertThat(total(todo.get("porEdad"), "DE_15_A_17")).isEqualTo(2);
+        assertThat(total(todo.get("porEdad"), "HASTA_8")).isZero();
+        assertThat(total(todo.get("porEdad"), "N")).isEqualTo(-1);
         assertThat(total(todo.get("porOrigen"), "DOCENTE")).isEqualTo(3);
         assertThat(total(todo.get("porOrigen"), "ESTUDIANTE")).isEqualTo(1);
         assertThat(total(todo.get("porGrupo"), "Sexto A")).isEqualTo(2);
@@ -210,7 +217,7 @@ class EstadisticaTest extends IntegracionTest {
         byte[] excel = mvc.perform(get("/api/v1/estadisticas/excel?anioId=" + anio).header("Authorization", colegio.admin()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
         try (Workbook libro = new XSSFWorkbook(new ByteArrayInputStream(excel))) {
-            assertThat(libro.getNumberOfSheets()).isEqualTo(8);
+            assertThat(libro.getNumberOfSheets()).isEqualTo(9);
             Sheet resumen = libro.getSheet("Resumen");
             boolean encontrado = false;
             for (Row fila : resumen) {

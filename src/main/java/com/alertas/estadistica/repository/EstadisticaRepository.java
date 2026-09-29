@@ -162,6 +162,30 @@ public class EstadisticaRepository {
         return filas(sql, filtro, zona);
     }
 
+    // [rango de edad que tenia el estudiante cuando se creo la alerta, total]. N: sin fecha de nacimiento
+    public List<Object[]> porEdad(FiltroEstadistica filtro, String zona) {
+
+        String sql = """
+                SELECT CASE
+                           WHEN e.est_fecha_nacimiento IS NULL THEN 'N'
+                           WHEN ed.edad <= 8 THEN 'HASTA_8'
+                           WHEN ed.edad <= 11 THEN 'DE_9_A_11'
+                           WHEN ed.edad <= 14 THEN 'DE_12_A_14'
+                           WHEN ed.edad <= 17 THEN 'DE_15_A_17'
+                           ELSE 'DESDE_18'
+                       END,
+                       count(*)
+                """ + ALERTAS + """
+                JOIN estudiantes e ON e.est_id = a.ale_est_id
+                CROSS JOIN LATERAL (
+                    SELECT extract(year FROM age(CAST(a.ale_creado_en AT TIME ZONE CAST(:zona AS text) AS date),
+                                                 e.est_fecha_nacimiento)) AS edad
+                ) ed
+                """ + FILTRO_ALERTAS + " GROUP BY 1";
+
+        return filas(sql, filtro, zona);
+    }
+
     // [quien la creo: ESTUDIANTE (pidio ayuda) o el rol del que la reporto, total]
     public List<Object[]> porOrigen(FiltroEstadistica filtro, String zona) {
 

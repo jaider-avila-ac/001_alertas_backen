@@ -17,6 +17,7 @@ import com.alertas.estudiante.model.Familiar;
 import com.alertas.estudiante.repository.EstudianteFila;
 import com.alertas.estudiante.repository.EstudianteRepository;
 import com.alertas.estudiante.repository.FamiliarRepository;
+import com.alertas.estudiante.service.FechaNacimiento;
 import com.alertas.estudiante.service.ImportacionEstudiantesService;
 import com.alertas.matricula.service.MatriculaService;
 import com.alertas.shared.CodigoAleatorio;
@@ -253,6 +254,11 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
             fecha = leerFecha(fechaTexto);
             if (fecha == null) {
                 problemas.add("fecha de nacimiento no valida (dd/mm/aaaa)");
+            } else {
+                String problemaFecha = FechaNacimiento.problema(LocalDate.parse(fecha), LocalDate.now());
+                if (problemaFecha != null) {
+                    problemas.add(problemaFecha.toLowerCase());
+                }
             }
         }
 
@@ -619,10 +625,8 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
 
         for (String formato : formatos) {
             try {
+                // la edad se revisa aparte (FechaNacimiento), con un mensaje que dice que esta mal
                 LocalDate fecha = LocalDate.parse(texto, DateTimeFormatter.ofPattern(formato));
-                if (fecha.isAfter(LocalDate.now()) || fecha.getYear() < 1950) {
-                    return null;
-                }
                 return fecha.toString();
             } catch (DateTimeParseException e) {
                 // se prueba con el siguiente formato

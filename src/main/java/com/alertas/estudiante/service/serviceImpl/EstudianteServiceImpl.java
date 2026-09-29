@@ -19,6 +19,7 @@ import com.alertas.estudiante.repository.EstudianteFila;
 import com.alertas.estudiante.repository.EstudianteRepository;
 import com.alertas.estudiante.repository.FamiliarRepository;
 import com.alertas.estudiante.service.EstudianteService;
+import com.alertas.estudiante.service.FechaNacimiento;
 import com.alertas.matricula.dto.MatriculaResponse;
 import com.alertas.matricula.service.MatriculaService;
 import com.alertas.shared.CodigoAleatorio;
@@ -30,6 +31,7 @@ import com.alertas.shared.interceptor.TenantContext;
 import com.alertas.usuario.model.Usuario;
 import com.alertas.usuario.service.UsuarioService;
 import jakarta.persistence.EntityManager;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -511,6 +513,11 @@ public class EstudianteServiceImpl implements EstudianteService {
     }
 
     private void copiarDatos(EstudianteRequest request, Estudiante estudiante) {
+
+        String problemaFecha = FechaNacimiento.problema(request.fechaNacimiento(), LocalDate.now());
+        if (problemaFecha != null) {
+            throw ApiException.invalido(problemaFecha);
+        }
 
         estudiante.setTipoDoc(request.tipoDoc());
         estudiante.setNroDoc(request.nroDoc().trim());

@@ -124,6 +124,44 @@ class EstudianteTest extends IntegracionTest {
     }
 
     @Test
+    void laFechaDeNacimientoDebeDarUnaEdadPosible() throws Exception {
+
+        Colegio colegio = crearColegioCompleto(mvc, mapper, "est-nacimiento", "11120000");
+        Long sextoA = crearGrupo(colegio, ESTE_ANIO, "Sexto", "A");
+
+        // 1600, futura o de un bebe: no
+        for (String fecha : new String[] {"1600-05-10", LocalDate.now().plusDays(3).toString(), LocalDate.now().minusYears(1).toString()}) {
+            String body = mapper.writeValueAsString(Map.of("tipoDoc", "TI", "nroDoc", "1201", "nombres", "Ana",
+                    "apellidos", "Ruiz", "grupoId", sextoA, "fechaNacimiento", fecha));
+            mvc.perform(post("/api/v1/estudiantes").header("Authorization", colegio.admin())
+                            .header("Idempotency-Key", UUID.randomUUID().toString())
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("fecha de nacimiento")));
+        }
+
+        // 12 anios: si
+        String valida = LocalDate.now().minusYears(12).minusDays(10).toString();
+        String body = mapper.writeValueAsString(Map.of("tipoDoc", "TI", "nroDoc", "1201", "nombres", "Ana",
+                "apellidos", "Ruiz", "grupoId", sextoA, "fechaNacimiento", valida));
+        mvc.perform(post("/api/v1/estudiantes").header("Authorization", colegio.admin())
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fechaNacimiento").value(valida));
+
+        // la base tampoco acepta una fecha absurda aunque alguien se salte el backend
+        Long id = OWNER.queryForObject("SELECT est_id FROM estudiantes WHERE est_ins_id = ? AND est_nro_doc = '1201'",
+                Long.class, colegio.id());
+        try {
+            OWNER.update("UPDATE estudiantes SET est_fecha_nacimiento = '1600-01-01' WHERE est_id = ?", id);
+            throw new AssertionError("la base acepto 1600");
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            assertThat(e.getMessage()).contains("ck_estudiantes_fecha_nacimiento");
+        }
+    }
+
+    @Test
     void listarBuscaFiltraYPagina() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "est-listar", "22220000");
