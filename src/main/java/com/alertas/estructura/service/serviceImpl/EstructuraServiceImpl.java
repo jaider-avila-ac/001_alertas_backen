@@ -233,7 +233,7 @@ public class EstructuraServiceImpl implements EstructuraService {
         TenantSupport.requireTenant(em);
 
         Grupo grupo = obtenerGrupo(grupoId);
-        return GrupoResponse.desde(grupo, grupoRepository.contarEstudiantes(grupoId));
+        return GrupoResponse.desde(grupo, grupoRepository.contarEstudiantes(grupoId), grupoRepository.contarAlertas(grupoId));
     }
 
     @Override
@@ -263,11 +263,18 @@ public class EstructuraServiceImpl implements EstructuraService {
             estudiantesPorGrupo.put(grupoId, total);
         }
 
+        Map<Long, Long> alertasPorGrupo = new HashMap<>();
+
+        for (Object[] fila : grupoRepository.contarAlertasPorGrupo(anio.getId())) {
+            alertasPorGrupo.put(((Number) fila[0]).longValue(), ((Number) fila[1]).longValue());
+        }
+
         List<GrupoResponse> respuesta = new ArrayList<>();
 
         for (Grupo grupo : grupoRepository.buscarPorAnio(anio.getId())) {
             long total = estudiantesPorGrupo.getOrDefault(grupo.getId(), 0L);
-            respuesta.add(GrupoResponse.desde(grupo, total));
+            long alertas = alertasPorGrupo.getOrDefault(grupo.getId(), 0L);
+            respuesta.add(GrupoResponse.desde(grupo, total, alertas));
         }
 
         return respuesta;
@@ -300,7 +307,7 @@ public class EstructuraServiceImpl implements EstructuraService {
         grupo.setNombre(nombreLimpio);
 
         grupoRepository.save(grupo);
-        return GrupoResponse.desde(grupo, 0);
+        return GrupoResponse.desde(grupo, 0, 0);
     }
 
     @Override
@@ -319,7 +326,7 @@ public class EstructuraServiceImpl implements EstructuraService {
         }
 
         grupo.setNombre(nombreLimpio);
-        return GrupoResponse.desde(grupo, grupoRepository.contarEstudiantes(grupoId));
+        return GrupoResponse.desde(grupo, grupoRepository.contarEstudiantes(grupoId), grupoRepository.contarAlertas(grupoId));
     }
 
     @Override

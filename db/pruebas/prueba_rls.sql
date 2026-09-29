@@ -170,11 +170,11 @@ DO $$
 BEGIN
     ASSERT (SELECT ale_prioritaria FROM alertas LIMIT 1), 'FALLO: una alerta critica deberia ser prioritaria';
 
-    -- en proceso sin psicorientador
+    -- completada exige fecha de cierre
     BEGIN
-        UPDATE alertas SET ale_estado = 'EN_PROCESO';
-        RAISE EXCEPTION 'FALLO: alerta en proceso sin psicorientador';
-    EXCEPTION WHEN check_violation THEN RAISE NOTICE 'OK  en proceso exige psicorientador';
+        UPDATE alertas SET ale_estado = 'COMPLETADA';
+        RAISE EXCEPTION 'FALLO: alerta completada sin fecha';
+    EXCEPTION WHEN check_violation THEN RAISE NOTICE 'OK  completada exige fecha';
     END;
 
     -- campos de solicitud del estudiante en una alerta de docente

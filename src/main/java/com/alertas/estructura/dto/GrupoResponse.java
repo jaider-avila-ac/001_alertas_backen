@@ -10,9 +10,10 @@ public record GrupoResponse(
         Long gradoId,
         String gradoNombre,
         int gradoOrden,
-        long totalEstudiantes) {
+        long totalEstudiantes,
+        long totalAlertas) {
 
-    public static GrupoResponse desde(Grupo grupo, long totalEstudiantes) {
+    public static GrupoResponse desde(Grupo grupo, long totalEstudiantes, long totalAlertas) {
 
         return new GrupoResponse(
                 grupo.getId(),
@@ -22,6 +23,7 @@ public record GrupoResponse(
                 grupo.getGrado().getId(),
                 grupo.getGrado().getNombre(),
                 grupo.getGrado().getOrden(),
-                totalEstudiantes);
+                totalEstudiantes,
+                totalAlertas);
     }
 }

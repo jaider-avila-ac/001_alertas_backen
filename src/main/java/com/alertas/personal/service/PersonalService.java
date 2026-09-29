@@ -7,6 +7,7 @@ import com.alertas.personal.dto.EstadoMasivoPersonalRequest;
 import com.alertas.personal.dto.PersonalDetalleResponse;
 import com.alertas.personal.dto.PersonalFilaResponse;
 import com.alertas.personal.dto.PersonalRequest;
+import com.alertas.personal.dto.PsicorientadorBasico;
 import com.alertas.shared.dto.NombrePersona;
 import com.alertas.shared.dto.PageResponse;
 import java.util.List;
@@ -47,4 +48,13 @@ public interface PersonalService {
 
     // nombres de la persona de ese usuario, null si el usuario no es del personal
     NombrePersona buscarNombre(Long usuarioId);
+
+    // null si ese usuario no es psicorientador
+    PsicorientadorBasico psicorientadorDeUsuario(Long usuarioId);
+
+    // falla con 404 si no es un psicorientador activo de la institucion
+    PsicorientadorBasico psicorientadorActivo(String codigo);
+
+    // para elegir a quien reasignar. son pocos, no se pagina
+    List<PsicorientadorBasico> psicorientadoresActivos();
 }

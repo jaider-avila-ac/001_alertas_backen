@@ -45,4 +45,9 @@ public interface GrupoRepository extends JpaRepository<Grupo, Long> {
 
     @Query(value = "SELECT count(*) FROM alertas a WHERE a.ale_grp_id = :grupoId", nativeQuery = true)
     long contarAlertas(@Param("grupoId") Long grupoId);
+
+    // alertas registradas en cada grupo del anio (el grupo del momento). devuelve [id del grupo, total]
+    @Query(value = "SELECT a.ale_grp_id, count(*) FROM alertas a WHERE a.ale_anl_id = :anioId GROUP BY a.ale_grp_id",
+            nativeQuery = true)
+    List<Object[]> contarAlertasPorGrupo(@Param("anioId") Long anioId);
 }

@@ -15,9 +15,11 @@ public record PersonalDetalleResponse(
         String rol,
         boolean activo,
         boolean debeCambiarContrasena,
-        OffsetDateTime ultimoIngreso) {
+        OffsetDateTime ultimoIngreso,
+        long casosAbiertos) {
 
-    public static PersonalDetalleResponse desde(Personal personal) {
+    // casosAbiertos: estudiantes con alertas activas que atiende (solo psicorientadores)
+    public static PersonalDetalleResponse desde(Personal personal, long casosAbiertos) {
 
         Usuario usuario = personal.getUsuario();
 
@@ -32,6 +34,7 @@ public record PersonalDetalleResponse(
                 usuario.getRol().name(),
                 usuario.isActivo(),
                 usuario.isDebeCambiarContrasena(),
-                usuario.getUltimoIngreso());
+                usuario.getUltimoIngreso(),
+                casosAbiertos);
     }
 }

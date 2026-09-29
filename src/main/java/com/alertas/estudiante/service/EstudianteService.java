@@ -1,6 +1,7 @@
 package com.alertas.estudiante.service;
 
 import com.alertas.estudiante.dto.EstadoMasivoEstudiantesRequest;
+import com.alertas.estudiante.dto.EstudianteBasico;
 import com.alertas.estudiante.dto.EstudianteDetalleResponse;
 import com.alertas.estudiante.dto.EstudianteFilaResponse;
 import com.alertas.estudiante.dto.EstudianteRequest;
@@ -62,4 +63,13 @@ public interface EstudianteService {
 
     // null si ese usuario no es estudiante
     NombrePersona buscarNombre(Long usuarioId);
+
+    // falla con 404 si no existe en la institucion
+    EstudianteBasico basicoPorCodigo(String codigo);
+
+    // null si ese usuario no es estudiante
+    EstudianteBasico basicoPorUsuario(Long usuarioId);
+
+    // uso interno: el id viene de otra tabla (una alerta, una cita). falla con 404 si no existe
+    EstudianteBasico basicoPorId(Long estudianteId);
 }

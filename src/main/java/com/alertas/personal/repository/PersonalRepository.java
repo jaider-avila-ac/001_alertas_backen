@@ -15,6 +15,11 @@ public interface PersonalRepository extends JpaRepository<Personal, Long> {
 
     boolean existsByNroDoc(String nroDoc);
 
+    // estudiantes con alertas activas que atiende este psicorientador
+    @Query(value = "SELECT count(DISTINCT a.ale_est_id) FROM alertas a "
+            + "WHERE a.ale_psi_id = :personalId AND a.ale_estado IN ('PENDIENTE', 'EN_PROCESO')", nativeQuery = true)
+    long casosAbiertos(@Param("personalId") Long personalId);
+
     boolean existsByNroDocAndIdNot(String nroDoc, Long id);
 
     @Query("SELECT p FROM Personal p JOIN FETCH p.usuario u WHERE u.rol = :rol ORDER BY p.apellidos, p.nombres")

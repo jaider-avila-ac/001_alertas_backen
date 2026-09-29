@@ -8,6 +8,8 @@ import com.alertas.personal.dto.EstadoMasivoPersonalRequest;
 import com.alertas.personal.dto.PersonalDetalleResponse;
 import com.alertas.personal.dto.PersonalFilaResponse;
 import com.alertas.personal.dto.PersonalRequest;
+import com.alertas.personal.dto.PsicorientadorBasico;
+import com.alertas.personal.dto.PsicorientadoresInactivadosEvento;
 import com.alertas.personal.model.Personal;
 import com.alertas.personal.repository.PersonalFila;
 import com.alertas.personal.repository.PersonalRepository;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,12 +37,18 @@ public class PersonalServiceImpl implements PersonalService {
 
     private final PersonalRepository repository;
     private final UsuarioService usuarioService;
+    private final ApplicationEventPublisher eventos;
     private final EntityManager em;
 
-    public PersonalServiceImpl(PersonalRepository repository, UsuarioService usuarioService, EntityManager em) {
+    public PersonalServiceImpl(
+            PersonalRepository repository,
+            UsuarioService usuarioService,
+            ApplicationEventPublisher eventos,
+            EntityManager em) {
 
         this.repository = repository;
         this.usuarioService = usuarioService;
+        this.eventos = eventos;
         this.em = em;
     }
 
@@ -141,7 +150,7 @@ public class PersonalServiceImpl implements PersonalService {
     public PersonalDetalleResponse buscar(String codigo) {
 
         TenantSupport.requireTenant(em);
-        return PersonalDetalleResponse.desde(obtener(codigo));
+        return detalle(obtener(codigo));
     }
 
     @Override
@@ -159,7 +168,7 @@ public class PersonalServiceImpl implements PersonalService {
         copiarDatos(request, personal);
         repository.save(personal);
 
-        return PersonalDetalleResponse.desde(personal);
+        return detalle(personal);
     }
 
     @Override
@@ -186,7 +195,7 @@ public class PersonalServiceImpl implements PersonalService {
         personal.setCorreo(vacioANull(request.correo()));
         personal.setCelular(vacioANull(request.celular()));
 
-        return PersonalDetalleResponse.desde(personal);
+        return detalle(personal);
     }
 
     @Override
@@ -198,7 +207,7 @@ public class PersonalServiceImpl implements PersonalService {
         Personal personal = obtener(codigo);
         usuarioService.restablecerContrasenaPorAdmin(personal.getUsuario().getId());
 
-        return PersonalDetalleResponse.desde(personal);
+        return detalle(personal);
     }
 
     @Override
@@ -207,18 +216,26 @@ public class PersonalServiceImpl implements PersonalService {
 
         TenantSupport.requireTenant(em);
 
+        Long institucionId = TenantSupport.requireTenant(em);
+
         Personal personal = obtener(codigo);
         usuarioService.cambiarEstadoPorAdmin(personal.getUsuario().getId(), activo);
 
-        return PersonalDetalleResponse.desde(personal);
+        // sus casos abiertos vuelven a la bandeja para que otro psicorientador los tome
+        if (!activo && personal.getUsuario().getRol() == Rol.PSICORIENTADOR) {
+            eventos.publishEvent(new PsicorientadoresInactivadosEvento(institucionId));
+        }
+
+        return detalle(personal);
     }
 
     @Override
     @Transactional
     public int cambiarEstadoMasivo(EstadoMasivoPersonalRequest request) {
 
-        TenantSupport.requireTenant(em);
+        Long institucionId = TenantSupport.requireTenant(em);
         boolean activo = request.activo();
+        int afectados;
 
         if (request.codigos() != null && !request.codigos().isEmpty()) {
             List<Long> usuarioIds = repository.usuarioIdsPorCodigos(request.codigos());
@@ -227,20 +244,23 @@ public class PersonalServiceImpl implements PersonalService {
                 return 0;
             }
 
-            return usuarioService.cambiarEstadoMasivo(null, usuarioIds, activo);
-        }
-
-        if (request.rol() != null) {
-            return usuarioService.cambiarEstadoMasivo(Rol.valueOf(request.rol()), null, activo);
-        }
-
-        if (request.todos()) {
+            afectados = usuarioService.cambiarEstadoMasivo(null, usuarioIds, activo);
+        } else if (request.rol() != null) {
+            afectados = usuarioService.cambiarEstadoMasivo(Rol.valueOf(request.rol()), null, activo);
+        } else if (request.todos()) {
             int docentes = usuarioService.cambiarEstadoMasivo(Rol.DOCENTE, null, activo);
             int psicorientadores = usuarioService.cambiarEstadoMasivo(Rol.PSICORIENTADOR, null, activo);
-            return docentes + psicorientadores;
+            afectados = docentes + psicorientadores;
+        } else {
+            throw ApiException.invalido("Selecciona personas, un rol o todos");
         }
 
-        throw ApiException.invalido("Selecciona personas, un rol o todos");
+        // si entre los inactivados hay psicorientadores, sus casos vuelven a la bandeja
+        if (!activo && afectados > 0) {
+            eventos.publishEvent(new PsicorientadoresInactivadosEvento(institucionId));
+        }
+
+        return afectados;
     }
 
     // ---------------------------------------------------------------- para otros modulos
@@ -260,7 +280,68 @@ public class PersonalServiceImpl implements PersonalService {
         return new NombrePersona(personal.getNombres(), personal.getApellidos());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public PsicorientadorBasico psicorientadorDeUsuario(Long usuarioId) {
+
+        TenantSupport.requireTenant(em);
+
+        Personal personal = repository.buscarPorUsuario(usuarioId);
+
+        if (personal == null || personal.getUsuario().getRol() != Rol.PSICORIENTADOR) {
+            return null;
+        }
+
+        return basico(personal);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PsicorientadorBasico psicorientadorActivo(String codigo) {
+
+        TenantSupport.requireTenant(em);
+
+        Personal personal = repository.buscarPorCodigo(codigo);
+
+        if (personal == null || personal.getUsuario().getRol() != Rol.PSICORIENTADOR || !personal.getUsuario().isActivo()) {
+            throw ApiException.noEncontrado("El psicorientador no existe o esta inactivo");
+        }
+
+        return basico(personal);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PsicorientadorBasico> psicorientadoresActivos() {
+
+        TenantSupport.requireTenant(em);
+
+        List<PsicorientadorBasico> respuesta = new ArrayList<>();
+
+        for (Personal personal : repository.buscarPorRol(Rol.PSICORIENTADOR)) {
+            if (personal.getUsuario().isActivo()) {
+                respuesta.add(basico(personal));
+            }
+        }
+
+        return respuesta;
+    }
+
+    private PsicorientadorBasico basico(Personal personal) {
+        return new PsicorientadorBasico(personal.getId(), personal.getCodigo(), personal.getNombres(), personal.getApellidos());
+    }
+
     // ---------------------------------------------------------------- ayudas
+
+    private PersonalDetalleResponse detalle(Personal personal) {
+
+        long casos = 0;
+        if (personal.getUsuario().getRol() == Rol.PSICORIENTADOR) {
+            casos = repository.casosAbiertos(personal.getId());
+        }
+
+        return PersonalDetalleResponse.desde(personal, casos);
+    }
 
     // docente o psicorientador. un administrador por aqui "no existe": lo maneja el superadmin
     private Personal obtener(String codigo) {

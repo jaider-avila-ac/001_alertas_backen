@@ -6,6 +6,7 @@ import com.alertas.estructura.dto.AnioLectivoResponse;
 import com.alertas.estructura.dto.GrupoResponse;
 import com.alertas.estructura.service.EstructuraService;
 import com.alertas.estudiante.dto.EstadoMasivoEstudiantesRequest;
+import com.alertas.estudiante.dto.EstudianteBasico;
 import com.alertas.estudiante.dto.EstudianteDetalleResponse;
 import com.alertas.estudiante.dto.EstudianteFilaResponse;
 import com.alertas.estudiante.dto.EstudianteRequest;
@@ -445,6 +446,54 @@ public class EstudianteServiceImpl implements EstudianteService {
         }
 
         return new NombrePersona(estudiante.getNombres(), estudiante.getApellidos());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public EstudianteBasico basicoPorCodigo(String codigo) {
+
+        TenantSupport.requireTenant(em);
+        return basico(obtener(codigo));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public EstudianteBasico basicoPorUsuario(Long usuarioId) {
+
+        TenantSupport.requireTenant(em);
+
+        Estudiante estudiante = repository.buscarPorUsuario(usuarioId);
+
+        if (estudiante == null) {
+            return null;
+        }
+
+        return basico(estudiante);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public EstudianteBasico basicoPorId(Long estudianteId) {
+
+        TenantSupport.requireTenant(em);
+
+        Estudiante estudiante = repository.findById(estudianteId).orElse(null);
+
+        if (estudiante == null) {
+            throw ApiException.noEncontrado("El estudiante no existe");
+        }
+
+        return basico(estudiante);
+    }
+
+    private EstudianteBasico basico(Estudiante estudiante) {
+
+        return new EstudianteBasico(
+                estudiante.getId(),
+                estudiante.getCodigo(),
+                estudiante.getNombres(),
+                estudiante.getApellidos(),
+                estudiante.getUsuario().isActivo());
     }
 
     // ---------------------------------------------------------------- ayudas
