@@ -7,7 +7,6 @@ import com.alertas.institucion.service.InstitucionService;
 import com.alertas.shared.exception.ApiException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
@@ -24,7 +23,6 @@ public class TenantInterceptor implements HandlerInterceptor {
 
     private static final Pattern RUTA_PUBLICA = Pattern.compile("^/api/v1/public/([a-z0-9-]+)(/.*)?$");
     private static final String NO_DISPONIBLE = "La institucion no esta disponible";
-    private static final Set<String> RUTAS_CAMBIO_CONTRASENA = Set.of("/api/v1/auth/yo", "/api/v1/auth/contrasena");
 
     private final InstitucionService institucionService;
 
@@ -84,11 +82,7 @@ public class TenantInterceptor implements HandlerInterceptor {
             throw ApiException.prohibido("Tu sesion pertenece a otra institucion");
         }
 
-        // primer ingreso o contrasena restablecida: hasta que la cambie solo puede ver su perfil y cambiarla
-        if (usuario.debeCambiarContrasena() && !RUTAS_CAMBIO_CONTRASENA.contains(ruta)) {
-            throw ApiException.prohibido("Debes cambiar tu contrasena antes de continuar");
-        }
-
+        // si todavia usa la contrasena asignada no se le bloquea nada: el front solo le sugiere cambiarla
         TenantContext.establecer(estado.id(), estado.slug());
         return true;
     }

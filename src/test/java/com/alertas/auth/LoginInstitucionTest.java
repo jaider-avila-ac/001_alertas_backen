@@ -98,17 +98,17 @@ class LoginInstitucionTest extends IntegracionTest {
     }
 
     @Test
-    void primerIngresoObligaACambiarLaContrasena() throws Exception {
+    void primerIngresoSugiereCambiarLaContrasenaSinBloquear() throws Exception {
 
         String token = tokenDe(login("login-b", "9000", "9000")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.perfil.debeCambiarContrasena").value(true)));
 
-        // mientras no la cambie, solo su perfil y el cambio de contrasena
-        mvc.perform(get("/api/v1/auth/yo").header("Authorization", token)).andExpect(status().isOk());
-        mvc.perform(get("/api/v1/prueba/tenant").header("Authorization", token))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("Debes cambiar tu contrasena antes de continuar"));
+        // con la contrasena asignada puede usar todo; el perfil dice que conviene cambiarla
+        mvc.perform(get("/api/v1/auth/yo").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.debeCambiarContrasena").value(true));
+        mvc.perform(get("/api/v1/prueba/tenant").header("Authorization", token)).andExpect(status().isOk());
 
         // no puede quedar igual al documento
         mvc.perform(put("/api/v1/auth/contrasena").header("Authorization", token)

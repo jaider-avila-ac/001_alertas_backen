@@ -5,7 +5,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 // lo que viene dentro del token. el superadmin no tiene institucion ni slug.
-// debeCambiarContrasena: mientras sea true solo puede ver su perfil y cambiar la contrasena
+// debeCambiarContrasena: todavia usa la contrasena asignada. no bloquea nada, el front sugiere cambiarla
 public record UsuarioAutenticado(
         Long id,
         Long institucionId,
