@@ -401,7 +401,13 @@ class AtencionTest extends IntegracionTest {
     }
 
     private int noLeidas(String token) throws Exception {
+        esperarNotificaciones();
         return obtener("/api/v1/notificaciones/no-leidas", token).get("total").asInt();
+    }
+
+    private JsonNode avisos(String token) throws Exception {
+        esperarNotificaciones();
+        return obtener("/api/v1/notificaciones", token);
     }
 
     @Test
@@ -415,15 +421,15 @@ class AtencionTest extends IntegracionTest {
         String critica = crearAlerta(e, ana, "CRITICO");
         assertThat(noLeidas(e.psi1())).isEqualTo(1);
         assertThat(noLeidas(e.psi2())).isEqualTo(1);
-        assertThat(obtener("/api/v1/notificaciones", e.psi1()).get("contenido").get(0).get("tipo").asText())
+        assertThat(avisos(e.psi1()).get("contenido").get(0).get("tipo").asText())
                 .isEqualTo("ALERTA_PRIORITARIA");
 
         // Laura agenda: el docente sabe que esta en atencion y el estudiante que tiene cita
         String cita = leer(agendar(e.psi1(), ana, OffsetDateTime.now().plusDays(1), new ArrayList<>())
                 .andExpect(status().isCreated()).andReturn()).get("codigo").asText();
-        assertThat(obtener("/api/v1/notificaciones", e.docente()).get("contenido").get(0).get("tipo").asText())
+        assertThat(avisos(e.docente()).get("contenido").get(0).get("tipo").asText())
                 .isEqualTo("ALERTA_EN_PROCESO");
-        JsonNode delEstudiante = obtener("/api/v1/notificaciones", estudiante).get("contenido").get(0);
+        JsonNode delEstudiante = avisos(estudiante).get("contenido").get(0);
         assertThat(delEstudiante.get("tipo").asText()).isEqualTo("CITA_AGENDADA");
         assertThat(delEstudiante.get("enlace").asText()).isEqualTo("/mi-proceso");
 
@@ -446,11 +452,11 @@ class AtencionTest extends IntegracionTest {
         mvc.perform(post("/api/v1/citas/" + cita + "/finalizar").header("Authorization", e.psi1())
                         .contentType(MediaType.APPLICATION_JSON).content(cuerpo))
                 .andExpect(status().isOk());
-        assertThat(obtener("/api/v1/notificaciones", e.docente()).get("contenido").get(0).get("tipo").asText())
+        assertThat(avisos(e.docente()).get("contenido").get(0).get("tipo").asText())
                 .isEqualTo("ALERTA_ATENDIDA");
 
         // marcar leida: solo las propias
-        long id = obtener("/api/v1/notificaciones", e.docente()).get("contenido").get(0).get("id").asLong();
+        long id = avisos(e.docente()).get("contenido").get(0).get("id").asLong();
         mvc.perform(patch("/api/v1/notificaciones/" + id + "/leida").header("Authorization", e.psi1()))
                 .andExpect(status().isNotFound());
         int antes = noLeidas(e.docente());
@@ -462,7 +468,7 @@ class AtencionTest extends IntegracionTest {
         assertThat(noLeidas(e.psi1())).isZero();
 
         // quien hace algo no se avisa a si mismo: Laura no tiene avisos de su propia cita
-        for (JsonNode aviso : obtener("/api/v1/notificaciones", e.psi1()).get("contenido")) {
+        for (JsonNode aviso : avisos(e.psi1()).get("contenido")) {
             assertThat(aviso.get("tipo").asText()).doesNotStartWith("CITA_");
         }
         assertThat(critica).isNotEmpty();

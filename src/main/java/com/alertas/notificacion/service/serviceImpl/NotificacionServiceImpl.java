@@ -4,6 +4,7 @@ import com.alertas.auth.model.UsuarioAutenticado;
 import com.alertas.notificacion.dto.NotificacionResponse;
 import com.alertas.notificacion.model.Notificacion;
 import com.alertas.notificacion.repository.NotificacionRepository;
+import com.alertas.notificacion.service.ColaNotificacionesService;
 import com.alertas.notificacion.service.EnVivoService;
 import com.alertas.notificacion.service.NotificacionService;
 import com.alertas.shared.TenantSupport;
@@ -25,12 +26,18 @@ public class NotificacionServiceImpl implements NotificacionService {
 
     private final NotificacionRepository repository;
     private final EnVivoService enVivoService;
+    private final ColaNotificacionesService colaNotificaciones;
     private final EntityManager em;
 
-    public NotificacionServiceImpl(NotificacionRepository repository, EnVivoService enVivoService, EntityManager em) {
+    public NotificacionServiceImpl(
+            NotificacionRepository repository,
+            EnVivoService enVivoService,
+            ColaNotificacionesService colaNotificaciones,
+            EntityManager em) {
 
         this.repository = repository;
         this.enVivoService = enVivoService;
+        this.colaNotificaciones = colaNotificaciones;
         this.em = em;
     }
 
@@ -46,17 +53,8 @@ public class NotificacionServiceImpl implements NotificacionService {
             return;
         }
 
-        Notificacion notificacion = new Notificacion();
-        notificacion.setInstitucionId(institucionId);
-        notificacion.setUsuarioId(usuarioId);
-        notificacion.setTipo(tipo);
-        notificacion.setTitulo(recortar(titulo, 120));
-        notificacion.setMensaje(recortar(mensaje, 300));
-        notificacion.setEnlace(enlace);
-        repository.save(notificacion);
-
-        // le llega al instante si tiene la app abierta
-        enVivoService.avisarNueva(institucionId, usuarioId, NotificacionResponse.desde(notificacion));
+        // va a la cola: el consumidor la guarda y se la entrega al instante si tiene la app abierta
+        colaNotificaciones.encolar(institucionId, usuarioId, tipo, recortar(titulo, 120), recortar(mensaje, 300), enlace);
     }
 
     @Override

@@ -46,6 +46,10 @@ public class Notificacion {
     @Column(name = "not_leida", nullable = false)
     private boolean leida;
 
+    // id del mensaje en la cola: si se reintenta, no se guarda dos veces
+    @Column(name = "not_cola_id", updatable = false, length = 40)
+    private String colaId;
+
     @Column(name = "not_creado_en", nullable = false, updatable = false)
     @Setter(AccessLevel.NONE)
     private OffsetDateTime creadoEn;

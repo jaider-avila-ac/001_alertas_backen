@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.alertas.auth.model.Rol;
 import com.alertas.auth.service.JwtService;
+import com.alertas.notificacion.service.ColaNotificacionesService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -19,6 +20,8 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.connection.stream.StreamInfo;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -76,6 +79,36 @@ public abstract class IntegracionTest {
 
     @Autowired
     protected JwtService jwtService;
+
+    @Autowired
+    protected StringRedisTemplate redisPruebas;
+
+    // las notificaciones pasan por una cola: se espera a que el consumidor la deje al dia
+    protected void esperarNotificaciones() throws InterruptedException {
+
+        for (int i = 0; i < 200; i++) {
+            if (colaAlDia()) {
+                return;
+            }
+            Thread.sleep(25);
+        }
+        throw new AssertionError("La cola de notificaciones no se vacio");
+    }
+
+    private boolean colaAlDia() {
+
+        if (!Boolean.TRUE.equals(redisPruebas.hasKey(ColaNotificacionesService.COLA))) {
+            return true;
+        }
+
+        String ultimo = redisPruebas.opsForStream().info(ColaNotificacionesService.COLA).lastGeneratedId();
+        for (StreamInfo.XInfoGroup grupo : redisPruebas.opsForStream().groups(ColaNotificacionesService.COLA)) {
+            if (grupo.groupName().equals(ColaNotificacionesService.GRUPO)) {
+                return grupo.pendingCount() == 0 && ultimo.equals(grupo.lastDeliveredId());
+            }
+        }
+        return false;
+    }
 
     protected static Long crearInstitucion(String slug) {
         return crearInstitucion(slug, true, true);
