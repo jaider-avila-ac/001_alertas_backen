@@ -241,5 +241,17 @@ BEGIN
     RAISE NOTICE 'OK  busqueda sin tildes';
 END $$;
 
+-- 4. estadisticas del superadmin: sin tenant la app no ve filas, pero las funciones sa_* si dan los totales
+SET LOCAL ROLE alertas_app;
+SELECT set_config('app.current_tenant_id', '', true);
+DO $$
+BEGIN
+    ASSERT (SELECT count(*) FROM alertas) = 0, 'FALLO: sin tenant se ven alertas';
+    ASSERT (SELECT alertas FROM sa_resumen(NULL, NULL, NULL, 'America/Bogota')) > 0,
+        'FALLO: sa_resumen no ve las alertas';
+    ASSERT (SELECT sum(total) FROM sa_usuarios_por_rol(NULL)) > 0, 'FALLO: sa_usuarios_por_rol no ve usuarios';
+    RAISE NOTICE 'OK  el superadmin ve totales entre colegios sin ver filas';
+END $$;
+
 \echo '=== TODAS LAS PRUEBAS PASARON ==='
 ROLLBACK;

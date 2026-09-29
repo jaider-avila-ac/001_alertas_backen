@@ -7,6 +7,7 @@ import com.alertas.estadistica.dto.IndicadoresResponse;
 import com.alertas.estadistica.dto.PsicorientadorConteoResponse;
 import com.alertas.estadistica.repository.EstadisticaRepository;
 import com.alertas.estadistica.service.EstadisticaService;
+import com.alertas.shared.Fechas;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.excel.ArchivoExcel;
 import com.alertas.shared.excel.HojaExcel;
@@ -23,8 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class EstadisticaServiceImpl implements EstadisticaService {
-
-    private static final String[] MESES = {"ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"};
 
     // orden fijo en los graficos
     private static final String[][] NIVELES = {
@@ -192,7 +191,7 @@ public class EstadisticaServiceImpl implements EstadisticaService {
             if (totales.containsKey(clave)) {
                 total = totales.get(clave);
             }
-            respuesta.add(new ConteoResponse(clave, MESES[mes.getMonthValue() - 1] + " " + mes.getYear(), total));
+            respuesta.add(new ConteoResponse(clave, Fechas.mesCorto(mes), total));
             mes = mes.plusMonths(1);
         }
 
