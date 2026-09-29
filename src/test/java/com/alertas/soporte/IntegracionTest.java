@@ -68,6 +68,10 @@ public abstract class IntegracionTest {
         r.add("app.jwt.secreto", () -> "clave-de-pruebas-que-tiene-mas-de-32-caracteres");
         r.add("app.superadmin.usuario", () -> SUPERADMIN_USUARIO);
         r.add("app.superadmin.contrasena", () -> SUPERADMIN_CONTRASENA);
+        // nunca sms reales en las pruebas, aunque el .env tenga llaves de Twilio
+        r.add("app.sms.twilio.sid", () -> "");
+        r.add("app.sms.twilio.token", () -> "");
+        r.add("app.sms.twilio.numero", () -> "");
     }
 
     @Autowired

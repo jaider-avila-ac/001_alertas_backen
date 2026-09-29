@@ -19,6 +19,7 @@ import com.alertas.notificacion.service.NotificacionService;
 import com.alertas.personal.dto.PsicorientadorBasico;
 import com.alertas.personal.service.PersonalService;
 import com.alertas.shared.CodigoAleatorio;
+import com.alertas.sms.service.SmsService;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.PageResponse;
 import com.alertas.shared.exception.ApiException;
@@ -49,6 +50,7 @@ public class AlertaServiceImpl implements AlertaService {
     private final CategoriaService categoriaService;
     private final PersonalService personalService;
     private final NotificacionService notificacionService;
+    private final SmsService smsService;
     private final EntityManager em;
 
     public AlertaServiceImpl(
@@ -58,6 +60,7 @@ public class AlertaServiceImpl implements AlertaService {
             CategoriaService categoriaService,
             PersonalService personalService,
             NotificacionService notificacionService,
+            SmsService smsService,
             EntityManager em) {
 
         this.repository = repository;
@@ -66,6 +69,7 @@ public class AlertaServiceImpl implements AlertaService {
         this.categoriaService = categoriaService;
         this.personalService = personalService;
         this.notificacionService = notificacionService;
+        this.smsService = smsService;
         this.em = em;
     }
 
@@ -96,6 +100,9 @@ public class AlertaServiceImpl implements AlertaService {
 
         AlertaDetalleResponse respuesta = detalle(alerta, true);
         avisarPsicorientadores(alerta, respuesta);
+
+        // sms a la familia (el estudiante estaba presente cuando se creo)
+        smsService.alertaCreada(alerta.getId(), estudiante.id());
         return respuesta;
     }
 

@@ -22,6 +22,15 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
             """, nativeQuery = true)
     List<Long> estudiantesConCitaDeInactivos();
 
+    // ids de esas mismas citas, para avisar por sms despues de cancelarlas
+    @Query(value = """
+            SELECT c.cit_id FROM citas c
+            WHERE c.cit_estado = 'PROGRAMADA'
+              AND c.cit_psi_id IN (SELECT p.per_id FROM personal p JOIN usuarios u ON u.usu_id = p.per_usu_id
+                                   WHERE NOT u.usu_activo)
+            """, nativeQuery = true)
+    List<Long> citasDeInactivos();
+
     // las citas programadas de psicorientadores inactivos se cancelan
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """

@@ -8,6 +8,7 @@ import com.alertas.notificacion.service.NotificacionService;
 import com.alertas.personal.dto.PsicorientadorBasico;
 import com.alertas.personal.dto.PsicorientadoresInactivadosEvento;
 import com.alertas.personal.service.PersonalService;
+import com.alertas.sms.service.SmsService;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.context.event.EventListener;
@@ -23,6 +24,7 @@ public class LiberacionCasosServiceImpl implements LiberacionCasosService {
     private final CitaRepository citaRepository;
     private final PersonalService personalService;
     private final NotificacionService notificacionService;
+    private final SmsService smsService;
     private final BitacoraService bitacoraService;
 
     public LiberacionCasosServiceImpl(
@@ -30,12 +32,14 @@ public class LiberacionCasosServiceImpl implements LiberacionCasosService {
             CitaRepository citaRepository,
             PersonalService personalService,
             NotificacionService notificacionService,
+            SmsService smsService,
             BitacoraService bitacoraService) {
 
         this.alertaRepository = alertaRepository;
         this.citaRepository = citaRepository;
         this.personalService = personalService;
         this.notificacionService = notificacionService;
+        this.smsService = smsService;
         this.bitacoraService = bitacoraService;
     }
 
@@ -47,6 +51,7 @@ public class LiberacionCasosServiceImpl implements LiberacionCasosService {
 
         // antes de cancelar: a quien hay que avisarle
         List<Long> estudiantes = citaRepository.estudiantesConCitaDeInactivos();
+        List<Long> citasCanceladas = citaRepository.citasDeInactivos();
 
         int citas = citaRepository.cancelarDeInactivos(MOTIVO);
         int alertas = alertaRepository.liberarDeInactivos();
@@ -60,6 +65,9 @@ public class LiberacionCasosServiceImpl implements LiberacionCasosService {
 
         notificacionService.notificarVarios(estudiantes, "CITA_CANCELADA", "Tu cita fue cancelada",
                 "Orientacion te dara una nueva fecha", "/mi-proceso");
+        for (Long citaId : citasCanceladas) {
+            smsService.cita("CITA_CANCELADA", citaId);
+        }
 
         if (alertas > 0) {
             List<Long> psicorientadores = new ArrayList<>();

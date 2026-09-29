@@ -23,6 +23,7 @@ import com.alertas.personal.service.PersonalService;
 import com.alertas.notificacion.service.NotificacionService;
 import com.alertas.shared.CodigoAleatorio;
 import com.alertas.shared.Fechas;
+import com.alertas.sms.service.SmsService;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.exception.ApiException;
 import jakarta.persistence.EntityManager;
@@ -50,6 +51,7 @@ public class CitaServiceImpl implements CitaService {
     private final MatriculaService matriculaService;
     private final PersonalService personalService;
     private final NotificacionService notificacionService;
+    private final SmsService smsService;
     private final EntityManager em;
 
     public CitaServiceImpl(
@@ -59,6 +61,7 @@ public class CitaServiceImpl implements CitaService {
             MatriculaService matriculaService,
             PersonalService personalService,
             NotificacionService notificacionService,
+            SmsService smsService,
             EntityManager em) {
 
         this.repository = repository;
@@ -67,6 +70,7 @@ public class CitaServiceImpl implements CitaService {
         this.matriculaService = matriculaService;
         this.personalService = personalService;
         this.notificacionService = notificacionService;
+        this.smsService = smsService;
         this.em = em;
     }
 
@@ -152,6 +156,7 @@ public class CitaServiceImpl implements CitaService {
 
         avisarAlEstudiante(cita, "CITA_AGENDADA", "Tienes una cita con orientacion",
                 "El " + Fechas.cita(cita.getInicio()) + lugarTexto(cita));
+        smsService.cita("CITA_AGENDADA", cita.getId());
 
         return armar(cita, true);
     }
@@ -313,6 +318,7 @@ public class CitaServiceImpl implements CitaService {
 
         avisarAlEstudiante(cita, "CITA_CANCELADA", "Tu cita fue cancelada",
                 "La cita del " + Fechas.cita(cita.getInicio()) + " se cancelo. Orientacion te dara una nueva fecha");
+        smsService.cita("CITA_CANCELADA", cita.getId());
 
         return armar(cita, true);
     }
@@ -329,6 +335,7 @@ public class CitaServiceImpl implements CitaService {
 
         avisarAlEstudiante(cita, "CITA_REPROGRAMADA", "Tu cita cambio",
                 "Ahora es el " + Fechas.cita(cita.getInicio()) + lugarTexto(cita));
+        smsService.cita("CITA_REPROGRAMADA", cita.getId());
 
         return armar(cita, true);
     }
