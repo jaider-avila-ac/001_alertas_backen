@@ -493,7 +493,8 @@ public class EstudianteServiceImpl implements EstudianteService {
                 estudiante.getCodigo(),
                 estudiante.getNombres(),
                 estudiante.getApellidos(),
-                estudiante.getUsuario().isActivo());
+                estudiante.getUsuario().isActivo(),
+                estudiante.getUsuario().getId());
     }
 
     // ---------------------------------------------------------------- ayudas

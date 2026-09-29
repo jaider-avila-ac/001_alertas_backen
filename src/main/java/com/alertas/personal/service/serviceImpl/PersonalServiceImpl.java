@@ -312,6 +312,21 @@ public class PersonalServiceImpl implements PersonalService {
 
     @Override
     @Transactional(readOnly = true)
+    public PsicorientadorBasico psicorientadorPorId(Long personalId) {
+
+        TenantSupport.requireTenant(em);
+
+        Personal personal = repository.findById(personalId).orElse(null);
+
+        if (personal == null) {
+            return null;
+        }
+
+        return basico(personal);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<PsicorientadorBasico> psicorientadoresActivos() {
 
         TenantSupport.requireTenant(em);
@@ -328,7 +343,9 @@ public class PersonalServiceImpl implements PersonalService {
     }
 
     private PsicorientadorBasico basico(Personal personal) {
-        return new PsicorientadorBasico(personal.getId(), personal.getCodigo(), personal.getNombres(), personal.getApellidos());
+        return new PsicorientadorBasico(
+                personal.getId(), personal.getCodigo(), personal.getNombres(), personal.getApellidos(),
+                personal.getUsuario().getId());
     }
 
     // ---------------------------------------------------------------- ayudas

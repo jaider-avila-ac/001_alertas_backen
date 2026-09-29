@@ -393,4 +393,116 @@ class AtencionTest extends IntegracionTest {
         Long psiDespues = OWNER.queryForObject("SELECT ale_psi_id FROM alertas WHERE ale_codigo = ?", Long.class, alertaAna);
         assertThat(psiDespues).isNull();
     }
+
+    private String tokenEstudiante(Escenario e, String documento) {
+        Long usuario = idUsuario(e.colegio().id(), documento);
+        OWNER.update("UPDATE usuarios SET usu_debe_cambiar_contrasena = false WHERE usu_id = ?", usuario);
+        return token(usuario, e.colegio().id(), e.colegio().slug(), Rol.ESTUDIANTE);
+    }
+
+    private int noLeidas(String token) throws Exception {
+        return obtener("/api/v1/notificaciones/no-leidas", token).get("total").asInt();
+    }
+
+    @Test
+    void notificacionesDelFlujo() throws Exception {
+
+        Escenario e = escenario("aten-avisos", "44440000");
+        String ana = crearEstudiante(e, "4444001", "Ana");
+        String estudiante = tokenEstudiante(e, "4444001");
+
+        // alerta critica sin psicorientador: les llega a los dos
+        String critica = crearAlerta(e, ana, "CRITICO");
+        assertThat(noLeidas(e.psi1())).isEqualTo(1);
+        assertThat(noLeidas(e.psi2())).isEqualTo(1);
+        assertThat(obtener("/api/v1/notificaciones", e.psi1()).get("contenido").get(0).get("tipo").asText())
+                .isEqualTo("ALERTA_PRIORITARIA");
+
+        // Laura agenda: el docente sabe que esta en atencion y el estudiante que tiene cita
+        String cita = leer(agendar(e.psi1(), ana, OffsetDateTime.now().plusDays(1), new ArrayList<>())
+                .andExpect(status().isCreated()).andReturn()).get("codigo").asText();
+        assertThat(obtener("/api/v1/notificaciones", e.docente()).get("contenido").get(0).get("tipo").asText())
+                .isEqualTo("ALERTA_EN_PROCESO");
+        JsonNode delEstudiante = obtener("/api/v1/notificaciones", estudiante).get("contenido").get(0);
+        assertThat(delEstudiante.get("tipo").asText()).isEqualTo("CITA_AGENDADA");
+        assertThat(delEstudiante.get("enlace").asText()).isEqualTo("/mi-proceso");
+
+        // alerta nueva con psicorientador asignado: solo a Laura
+        crearAlerta(e, ana, "LEVE");
+        assertThat(noLeidas(e.psi1())).isEqualTo(2);
+        assertThat(noLeidas(e.psi2())).isEqualTo(1);
+
+        // se atiende: el docente recibe "fue atendida"
+        String cuerpo = "{\"resultados\":[";
+        JsonNode alertasCita = obtener("/api/v1/citas/" + cita, e.psi1()).get("alertas");
+        for (int i = 0; i < alertasCita.size(); i++) {
+            if (i > 0) {
+                cuerpo = cuerpo + ",";
+            }
+            cuerpo = cuerpo + "{\"alertaCodigo\":\"" + alertasCita.get(i).get("codigo").asText()
+                    + "\",\"resultado\":\"COMPLETADA\",\"observacion\":\"Resuelto\"}";
+        }
+        cuerpo = cuerpo + "]}";
+        mvc.perform(post("/api/v1/citas/" + cita + "/finalizar").header("Authorization", e.psi1())
+                        .contentType(MediaType.APPLICATION_JSON).content(cuerpo))
+                .andExpect(status().isOk());
+        assertThat(obtener("/api/v1/notificaciones", e.docente()).get("contenido").get(0).get("tipo").asText())
+                .isEqualTo("ALERTA_ATENDIDA");
+
+        // marcar leida: solo las propias
+        long id = obtener("/api/v1/notificaciones", e.docente()).get("contenido").get(0).get("id").asLong();
+        mvc.perform(patch("/api/v1/notificaciones/" + id + "/leida").header("Authorization", e.psi1()))
+                .andExpect(status().isNotFound());
+        int antes = noLeidas(e.docente());
+        mvc.perform(patch("/api/v1/notificaciones/" + id + "/leida").header("Authorization", e.docente()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.leida").value(true));
+        assertThat(noLeidas(e.docente())).isEqualTo(antes - 1);
+        mvc.perform(patch("/api/v1/notificaciones/leidas").header("Authorization", e.psi1())).andExpect(status().isOk());
+        assertThat(noLeidas(e.psi1())).isZero();
+
+        // quien hace algo no se avisa a si mismo: Laura no tiene avisos de su propia cita
+        for (JsonNode aviso : obtener("/api/v1/notificaciones", e.psi1()).get("contenido")) {
+            assertThat(aviso.get("tipo").asText()).doesNotStartWith("CITA_");
+        }
+        assertThat(critica).isNotEmpty();
+    }
+
+    @Test
+    void miProcesoSoloMuestraLoQueElEstudiantePuedeVer() throws Exception {
+
+        Escenario e = escenario("aten-miproceso", "45450000");
+        String ana = crearEstudiante(e, "4545001", "Ana");
+        String estudiante = tokenEstudiante(e, "4545001");
+
+        crearAlerta(e, ana, "CRITICO");
+        mvc.perform(post("/api/v1/alertas/solicitud-ayuda").header("Authorization", estudiante)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"categoriaId\":" + e.categoriaId() + ",\"urgencia\":\"MEDIA\","
+                                + "\"descripcion\":\"Necesito hablar con alguien\"}"))
+                .andExpect(status().isCreated());
+        agendar(e.psi1(), ana, OffsetDateTime.now().plusDays(1), new ArrayList<>()).andExpect(status().isCreated());
+
+        JsonNode proceso = obtener("/api/v1/mi-proceso", estudiante);
+        assertThat(proceso.get("psicorientador").asText()).isEqualTo("Laura Prueba");
+
+        // la del docente: solo estado y fecha
+        JsonNode alerta = proceso.get("alertas").get(0);
+        assertThat(alerta.get("estado").asText()).isEqualTo("EN_PROCESO");
+        assertThat(alerta.has("categoria")).isFalse();
+        assertThat(alerta.has("descripcion")).isFalse();
+        assertThat(alerta.has("nivel")).isFalse();
+
+        // la suya: lo que escribio
+        assertThat(proceso.get("solicitudes").get(0).get("descripcion").asText()).isEqualTo("Necesito hablar con alguien");
+
+        // la cita: cuando y donde, sin las alertas que trata
+        JsonNode cita = proceso.get("citas").get(0);
+        assertThat(cita.get("estado").asText()).isEqualTo("PROGRAMADA");
+        assertThat(cita.has("alertas")).isFalse();
+        assertThat(cita.get("indicacion").asText()).isEqualTo("Trae tu cuaderno");
+
+        mvc.perform(get("/api/v1/mi-proceso").header("Authorization", e.docente())).andExpect(status().isForbidden());
+    }
 }

@@ -13,6 +13,15 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
 
     Cita findByCodigo(String codigo);
 
+    // usuarios de los estudiantes cuya cita se va a cancelar porque su psicorientador se inactivo
+    @Query(value = """
+            SELECT e.est_usu_id FROM citas c JOIN estudiantes e ON e.est_id = c.cit_est_id
+            WHERE c.cit_estado = 'PROGRAMADA'
+              AND c.cit_psi_id IN (SELECT p.per_id FROM personal p JOIN usuarios u ON u.usu_id = p.per_usu_id
+                                   WHERE NOT u.usu_activo)
+            """, nativeQuery = true)
+    List<Long> estudiantesConCitaDeInactivos();
+
     // las citas programadas de psicorientadores inactivos se cancelan
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """

@@ -20,7 +20,9 @@ import com.alertas.matricula.model.Matricula;
 import com.alertas.matricula.service.MatriculaService;
 import com.alertas.personal.dto.PsicorientadorBasico;
 import com.alertas.personal.service.PersonalService;
+import com.alertas.notificacion.service.NotificacionService;
 import com.alertas.shared.CodigoAleatorio;
+import com.alertas.shared.Fechas;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.exception.ApiException;
 import jakarta.persistence.EntityManager;
@@ -47,6 +49,7 @@ public class CitaServiceImpl implements CitaService {
     private final EstudianteService estudianteService;
     private final MatriculaService matriculaService;
     private final PersonalService personalService;
+    private final NotificacionService notificacionService;
     private final EntityManager em;
 
     public CitaServiceImpl(
@@ -55,6 +58,7 @@ public class CitaServiceImpl implements CitaService {
             EstudianteService estudianteService,
             MatriculaService matriculaService,
             PersonalService personalService,
+            NotificacionService notificacionService,
             EntityManager em) {
 
         this.repository = repository;
@@ -62,6 +66,7 @@ public class CitaServiceImpl implements CitaService {
         this.estudianteService = estudianteService;
         this.matriculaService = matriculaService;
         this.personalService = personalService;
+        this.notificacionService = notificacionService;
         this.em = em;
     }
 
@@ -136,9 +141,17 @@ public class CitaServiceImpl implements CitaService {
         }
 
         for (Alerta alerta : incluidas) {
+            // al docente que la reporto: ya esta en atencion
+            if (Alerta.PENDIENTE.equals(alerta.getEstado())) {
+                avisarAlDocente(alerta, estudiante, "ALERTA_EN_PROCESO", "Tu alerta esta en atencion",
+                        "La alerta sobre " + estudiante.nombreCompleto() + " ya esta en atencion");
+            }
             alerta.setEstado(Alerta.EN_PROCESO);
             repository.agregarAlerta(cita.getInstitucionId(), cita.getId(), alerta.getId(), estudiante.id());
         }
+
+        avisarAlEstudiante(cita, "CITA_AGENDADA", "Tienes una cita con orientacion",
+                "El " + Fechas.cita(cita.getInicio()) + lugarTexto(cita));
 
         return armar(cita, true);
     }
@@ -252,6 +265,9 @@ public class CitaServiceImpl implements CitaService {
                 alerta.setEstado(Alerta.COMPLETADA);
                 alerta.setConclusion(observacion);
                 alerta.setCompletadaEn(ahora);
+                EstudianteBasico estudiante = estudianteService.basicoPorId(cita.getEstudianteId());
+                avisarAlDocente(alerta, estudiante, "ALERTA_ATENDIDA", "Tu alerta fue atendida",
+                        "La alerta sobre " + estudiante.nombreCompleto() + " fue atendida");
             } else {
                 alerta.setEstado(Alerta.EN_PROCESO);
             }
@@ -295,6 +311,9 @@ public class CitaServiceImpl implements CitaService {
         cita.setMotivoCancelacion(request.motivo().trim());
         cita.setCerradaEn(OffsetDateTime.now());
 
+        avisarAlEstudiante(cita, "CITA_CANCELADA", "Tu cita fue cancelada",
+                "La cita del " + Fechas.cita(cita.getInicio()) + " se cancelo. Orientacion te dara una nueva fecha");
+
         return armar(cita, true);
     }
 
@@ -307,6 +326,9 @@ public class CitaServiceImpl implements CitaService {
         Cita cita = miCitaProgramada(codigo);
         copiarHorario(cita, request.inicio(), request.duracionMinutos(), request.modalidad(), request.lugar(), request.indicacion());
         guardarSinCruces(cita);
+
+        avisarAlEstudiante(cita, "CITA_REPROGRAMADA", "Tu cita cambio",
+                "Ahora es el " + Fechas.cita(cita.getInicio()) + lugarTexto(cita));
 
         return armar(cita, true);
     }
@@ -333,6 +355,35 @@ public class CitaServiceImpl implements CitaService {
     }
 
     // ---------------------------------------------------------------- ayudas
+
+    // al estudiante: sin nada confidencial, solo cuando y donde
+    private void avisarAlEstudiante(Cita cita, String tipo, String titulo, String mensaje) {
+
+        EstudianteBasico estudiante = estudianteService.basicoPorId(cita.getEstudianteId());
+        notificacionService.notificar(estudiante.usuarioId(), tipo, titulo, mensaje, "/mi-proceso");
+    }
+
+    // al docente que reporto la alerta (las solicitudes del estudiante no avisan a nadie)
+    private void avisarAlDocente(Alerta alerta, EstudianteBasico estudiante, String tipo, String titulo, String mensaje) {
+
+        if (!Alerta.DOCENTE.equals(alerta.getOrigen())) {
+            return;
+        }
+
+        notificacionService.notificar(alerta.getReportadaPor(), tipo, titulo, mensaje, "/alertas/" + alerta.getCodigo());
+    }
+
+    private String lugarTexto(Cita cita) {
+
+        if (cita.getLugar() == null || "VIRTUAL".equals(cita.getModalidad())) {
+            if ("VIRTUAL".equals(cita.getModalidad())) {
+                return " (virtual)";
+            }
+            return "";
+        }
+
+        return " en " + cita.getLugar();
+    }
 
     private PsicorientadorBasico yo() {
 

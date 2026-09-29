@@ -22,6 +22,7 @@ import com.alertas.estudiante.dto.EstudianteBasico;
 import com.alertas.estudiante.service.EstudianteService;
 import com.alertas.matricula.dto.MatriculaResponse;
 import com.alertas.matricula.service.MatriculaService;
+import com.alertas.notificacion.service.NotificacionService;
 import com.alertas.personal.dto.PsicorientadorBasico;
 import com.alertas.personal.service.PersonalService;
 import com.alertas.shared.TenantSupport;
@@ -52,6 +53,7 @@ public class AtencionServiceImpl implements AtencionService {
     private final PersonalService personalService;
     private final CitaService citaService;
     private final BitacoraService bitacoraService;
+    private final NotificacionService notificacionService;
     private final EntityManager em;
 
     public AtencionServiceImpl(
@@ -61,6 +63,7 @@ public class AtencionServiceImpl implements AtencionService {
             PersonalService personalService,
             CitaService citaService,
             BitacoraService bitacoraService,
+            NotificacionService notificacionService,
             EntityManager em) {
 
         this.alertaRepository = alertaRepository;
@@ -69,6 +72,7 @@ public class AtencionServiceImpl implements AtencionService {
         this.personalService = personalService;
         this.citaService = citaService;
         this.bitacoraService = bitacoraService;
+        this.notificacionService = notificacionService;
         this.em = em;
     }
 
@@ -282,6 +286,9 @@ public class AtencionServiceImpl implements AtencionService {
 
         bitacoraService.registrar("REASIGNAR", "estudiante", estudiante.id(),
                 "a " + nuevo.nombreCompleto() + ": " + request.motivo().trim());
+
+        notificacionService.notificar(nuevo.usuarioId(), "CASO_ASIGNADO", "Te asignaron un caso",
+                "Ahora atiendes a " + estudiante.nombreCompleto(), "/atencion/estudiantes/" + estudiante.codigo());
 
         return armarExpediente(estudiante, usuario.rol() == Rol.PSICORIENTADOR);
     }

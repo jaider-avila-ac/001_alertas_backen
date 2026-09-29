@@ -15,6 +15,9 @@ import com.alertas.estudiante.dto.EstudianteBasico;
 import com.alertas.estudiante.service.EstudianteService;
 import com.alertas.matricula.model.Matricula;
 import com.alertas.matricula.service.MatriculaService;
+import com.alertas.notificacion.service.NotificacionService;
+import com.alertas.personal.dto.PsicorientadorBasico;
+import com.alertas.personal.service.PersonalService;
 import com.alertas.shared.CodigoAleatorio;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.PageResponse;
@@ -44,6 +47,8 @@ public class AlertaServiceImpl implements AlertaService {
     private final EstudianteService estudianteService;
     private final MatriculaService matriculaService;
     private final CategoriaService categoriaService;
+    private final PersonalService personalService;
+    private final NotificacionService notificacionService;
     private final EntityManager em;
 
     public AlertaServiceImpl(
@@ -51,12 +56,16 @@ public class AlertaServiceImpl implements AlertaService {
             EstudianteService estudianteService,
             MatriculaService matriculaService,
             CategoriaService categoriaService,
+            PersonalService personalService,
+            NotificacionService notificacionService,
             EntityManager em) {
 
         this.repository = repository;
         this.estudianteService = estudianteService;
         this.matriculaService = matriculaService;
         this.categoriaService = categoriaService;
+        this.personalService = personalService;
+        this.notificacionService = notificacionService;
         this.em = em;
     }
 
@@ -84,7 +93,10 @@ public class AlertaServiceImpl implements AlertaService {
 
         repository.save(alerta);
         pegarACitaProgramada(alerta);
-        return detalle(alerta, true);
+
+        AlertaDetalleResponse respuesta = detalle(alerta, true);
+        avisarPsicorientadores(alerta, respuesta);
+        return respuesta;
     }
 
     @Override
@@ -109,7 +121,10 @@ public class AlertaServiceImpl implements AlertaService {
 
         repository.save(alerta);
         pegarACitaProgramada(alerta);
-        return detalle(alerta, false);
+
+        AlertaDetalleResponse respuesta = detalle(alerta, false);
+        avisarPsicorientadores(alerta, respuesta);
+        return respuesta;
     }
 
     // lo comun a las dos: matricula del momento, categoria activa y psicorientador si ya lo tiene
@@ -166,6 +181,39 @@ public class AlertaServiceImpl implements AlertaService {
         repository.saveAndFlush(alerta);
 
         repository.pegarACita(alerta.getInstitucionId(), citaId, alerta.getId(), alerta.getEstudianteId());
+    }
+
+    // al psicorientador que ya lo atiende; si nadie lo atiende, a todos los activos (esta en la bandeja)
+    private void avisarPsicorientadores(Alerta alerta, AlertaDetalleResponse respuesta) {
+
+        String tipo = "ALERTA_NUEVA";
+        String titulo = "Nueva alerta";
+        if (Alerta.ESTUDIANTE.equals(alerta.getOrigen())) {
+            tipo = "SOLICITUD_AYUDA";
+            titulo = "Un estudiante pidio ayuda";
+        }
+        if (respuesta.prioritaria()) {
+            tipo = "ALERTA_PRIORITARIA";
+            titulo = "Alerta prioritaria";
+        }
+
+        String mensaje = respuesta.estudianteNombres() + " " + respuesta.estudianteApellidos() + " (" + respuesta.gradoNombre()
+                + " " + respuesta.grupoNombre() + ") · " + respuesta.categoria();
+        String enlace = "/atencion/estudiantes/" + respuesta.estudianteCodigo();
+
+        if (alerta.getPsicorientadorId() != null) {
+            PsicorientadorBasico psicorientador = personalService.psicorientadorPorId(alerta.getPsicorientadorId());
+            if (psicorientador != null) {
+                notificacionService.notificar(psicorientador.usuarioId(), tipo, titulo, mensaje, enlace);
+            }
+            return;
+        }
+
+        List<Long> usuarios = new ArrayList<>();
+        for (PsicorientadorBasico psicorientador : personalService.psicorientadoresActivos()) {
+            usuarios.add(psicorientador.usuarioId());
+        }
+        notificacionService.notificarVarios(usuarios, tipo, titulo, mensaje, enlace);
     }
 
     // ---------------------------------------------------------------- consultar

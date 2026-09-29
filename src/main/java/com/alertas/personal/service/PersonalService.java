@@ -55,6 +55,9 @@ public interface PersonalService {
     // falla con 404 si no es un psicorientador activo de la institucion
     PsicorientadorBasico psicorientadorActivo(String codigo);
 
+    // uso interno: el id viene de una alerta o una cita. null si no existe
+    PsicorientadorBasico psicorientadorPorId(Long personalId);
+
     // para elegir a quien reasignar. son pocos, no se pagina
     List<PsicorientadorBasico> psicorientadoresActivos();
 }
