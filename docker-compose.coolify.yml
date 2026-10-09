@@ -1,0 +1,81 @@
+# para practicar en coolify: backend, redis y postgres juntos (en produccion la bd va en su propio servidor).
+# coolify: build pack "Docker Compose", archivo /docker-compose.coolify.yml, dominio en el servicio backend (puerto 8085).
+# las variables (POSTGRES_PASSWORD, DB_*, REDIS_PASSWORD, JWT_SECRET, CORS_ORIGENES...) se ponen en coolify.
+# ningun puerto se publica: coolify entra al backend por su proxy y la bd y redis solo se ven en la red interna
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: alertas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # los usa db/init/00_roles.sh la primera vez (volumen vacio) para crear los dos usuarios
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+      TZ: America/Bogota
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d alertas"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: .
+    restart: unless-stopped
+    environment:
+      # la bd y redis por el nombre del servicio, dentro de la red de docker
+      DB_URL: jdbc:postgresql://postgres:5432/alertas
+      DB_USERNAME: alertas_app
+      DB_PASSWORD: ${DB_APP_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRACION_MINUTOS: ${JWT_EXPIRACION_MINUTOS:-480}
+      # urls de los fronts separadas por coma (ej. https://alertas-sw.netlify.app). sirve para cors y para el websocket
+      CORS_ORIGENES: ${CORS_ORIGENES}
+      URL_FRONT: ${URL_FRONT}
+      SUPERADMIN_USUARIO: ${SUPERADMIN_USUARIO:-}
+      SUPERADMIN_CONTRASENA: ${SUPERADMIN_CONTRASENA:-}
+      SUPERADMIN_NOMBRES: ${SUPERADMIN_NOMBRES:-Superadministrador}
+      # vacias = no sale ningun sms
+      TWILIO_SID: ${TWILIO_SID:-}
+      TWILIO_TOKEN: ${TWILIO_TOKEN:-}
+      TWILIO_NUMERO: ${TWILIO_NUMERO:-}
+      TZ: America/Bogota
+    expose:
+      - "8085"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8085/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 5
+
+volumes:
+  pgdata:
+  redisdata:
