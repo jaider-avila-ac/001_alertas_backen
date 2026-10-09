@@ -9,7 +9,11 @@ import com.alertas.auth.dto.PerfilResponse;
 public interface AuthService {
 
     // la institucion ya viene resuelta por el slug de la url (TenantInterceptor)
-    LoginResponse login(LoginRequest request, String ip);
+    // userAgent: de ahi se saca el equipo y el navegador de la sesion
+    LoginResponse login(LoginRequest request, String ip, String userAgent);
+
+    // cierra la sesion actual (el boton salir)
+    void salir();
 
     PerfilResponse perfil();
 

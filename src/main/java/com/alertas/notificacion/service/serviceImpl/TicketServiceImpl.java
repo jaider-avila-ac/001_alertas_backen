@@ -1,6 +1,7 @@
 package com.alertas.notificacion.service.serviceImpl;
 
 import com.alertas.auth.model.UsuarioAutenticado;
+import com.alertas.notificacion.dto.TicketCanjeado;
 import com.alertas.notificacion.service.TicketService;
 import java.time.Duration;
 import java.util.UUID;
@@ -24,12 +25,18 @@ public class TicketServiceImpl implements TicketService {
         UsuarioAutenticado usuario = UsuarioAutenticado.actual();
         String ticket = UUID.randomUUID().toString();
 
-        redis.opsForValue().set(clave(ticket), usuario.institucionId() + ":" + usuario.id(), DURACION);
+        // "-" cuando el token no trae sesion
+        String sesion = "-";
+        if (usuario.sesionId() != null) {
+            sesion = usuario.sesionId();
+        }
+
+        redis.opsForValue().set(clave(ticket), usuario.institucionId() + ":" + usuario.id() + ":" + sesion, DURACION);
         return ticket;
     }
 
     @Override
-    public long[] canjear(String ticket) {
+    public TicketCanjeado canjear(String ticket) {
 
         if (ticket == null || ticket.isBlank()) {
             return null;
@@ -43,7 +50,13 @@ public class TicketServiceImpl implements TicketService {
         }
 
         String[] partes = valor.split(":");
-        return new long[] {Long.parseLong(partes[0]), Long.parseLong(partes[1])};
+
+        String sesionId = null;
+        if (partes.length > 2 && !"-".equals(partes[2])) {
+            sesionId = partes[2];
+        }
+
+        return new TicketCanjeado(Long.parseLong(partes[0]), Long.parseLong(partes[1]), sesionId);
     }
 
     private String clave(String ticket) {

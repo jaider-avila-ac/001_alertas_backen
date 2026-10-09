@@ -1,9 +1,7 @@
-package com.alertas.notificacion.config;
+package com.alertas.sesion.config;
 
-import com.alertas.notificacion.dto.TicketCanjeado;
-import com.alertas.notificacion.service.EnVivoService;
-import com.alertas.notificacion.service.TicketService;
-import com.alertas.notificacion.service.serviceImpl.EnVivoServiceImpl;
+import com.alertas.auth.service.SesionService;
+import com.alertas.sesion.service.SesionesEnVivoService;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,50 +14,47 @@ import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.web.socket.WebSocketHandler;
-import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
- 
-// /ws/notificaciones?ticket=... ; el ticket se pide antes con el token (POST /api/v1/notificaciones/ticket)
-@Configuration
-@EnableWebSocket
-public class WebSocketConfig implements WebSocketConfigurer {
 
-    private final NotificacionesSocket socket;
-    private final TicketService ticketService;
+// /ws/superadmin?ticket=... ; el ticket se pide antes con el token (POST /api/v1/superadmin/sesiones/ticket)
+@Configuration
+public class SesionesSocketConfig implements WebSocketConfigurer {
+
+    private final SesionesSocket socket;
+    private final SesionesEnVivoService enVivoService;
     private final String[] origenes;
 
-    public WebSocketConfig(
-            NotificacionesSocket socket,
-            TicketService ticketService,
+    public SesionesSocketConfig(
+            SesionesSocket socket,
+            SesionesEnVivoService enVivoService,
             @Value("${app.cors.origenes}") String origenes) {
 
         this.socket = socket;
-        this.ticketService = ticketService;
+        this.enVivoService = enVivoService;
         this.origenes = origenes.split(",");
     }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
 
-        registry.addHandler(socket, "/ws/notificaciones")
+        registry.addHandler(socket, "/ws/superadmin")
                 .addInterceptors(new ValidarTicket())
                 .setAllowedOrigins(limpiar(origenes));
     }
 
-    // cada servidor escucha el canal de redis y reenvia a sus conexiones
+    // cada servidor escucha los cambios de sesiones y avisa a los paneles conectados a el
     @Bean
-    public RedisMessageListenerContainer oyenteNotificaciones(RedisConnectionFactory conexion, EnVivoService enVivoService) {
+    public RedisMessageListenerContainer oyenteSesiones(RedisConnectionFactory conexion) {
 
         RedisMessageListenerContainer contenedor = new RedisMessageListenerContainer();
         contenedor.setConnectionFactory(conexion);
         contenedor.addMessageListener(
                 (mensaje, patron) -> enVivoService.alRecibir(new String(mensaje.getBody(), StandardCharsets.UTF_8)),
-                new ChannelTopic(EnVivoServiceImpl.CANAL));
+                new ChannelTopic(SesionService.CANAL_CAMBIOS));
         return contenedor;
     }
 
-    // sin ticket valido no hay conexion. el ticket dice de que colegio y usuario es.
     // nombre completo: el editor borraba el import al guardar
     private class ValidarTicket implements org.springframework.web.socket.server.HandshakeInterceptor {
 
@@ -72,19 +67,13 @@ public class WebSocketConfig implements WebSocketConfigurer {
             }
 
             String ticket = ((ServletServerHttpRequest) request).getServletRequest().getParameter("ticket");
-            TicketCanjeado datos = ticketService.canjear(ticket);
+            Long superadminId = enVivoService.canjearTicket(ticket);
 
-            if (datos == null) {
+            if (superadminId == null) {
                 return false;
             }
 
-            atributos.put("institucionId", datos.institucionId());
-            atributos.put("usuarioId", datos.usuarioId());
-
-            // para cerrar solo la conexion de una sesion
-            if (datos.sesionId() != null) {
-                atributos.put("sesionId", datos.sesionId());
-            }
+            atributos.put("superadminId", superadminId);
             return true;
         }
 

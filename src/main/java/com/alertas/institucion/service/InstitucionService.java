@@ -40,6 +40,9 @@ public interface InstitucionService {
 
     List<AdministradorResponse> listarAdministradores(String slug);
 
+    // el superadmin trabaja con esa institucion en la transaccion actual. devuelve su id
+    Long usarPorSlug(String slug);
+
     AdministradorResponse crearAdministrador(String slug, AdministradorRequest request);
 
     // nombres, documento, correo y celular del administrador

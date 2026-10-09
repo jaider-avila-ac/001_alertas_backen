@@ -29,6 +29,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -268,6 +269,15 @@ public class InstitucionServiceImpl implements InstitucionService {
 
         usarInstitucionPorSlug(slug);
         return personalService.listarAdministradores();
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Long usarPorSlug(String slug) {
+
+        Institucion institucion = obtenerPorSlug(slug);
+        TenantSupport.usarInstitucion(em, institucion.getId());
+        return institucion.getId();
     }
 
     @Override

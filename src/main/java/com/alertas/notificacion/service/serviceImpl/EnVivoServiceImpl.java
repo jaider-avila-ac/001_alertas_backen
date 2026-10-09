@@ -16,6 +16,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
@@ -91,6 +92,17 @@ public class EnVivoServiceImpl implements EnVivoService {
     }
 
     @Override
+    public void avisarSesionCerrada(long institucionId, long usuarioId, String sesionId) {
+
+        ObjectNode mensaje = mapper.createObjectNode();
+        mensaje.put("tipo", "sesion-cerrada");
+
+        ObjectNode sobre = sobre(institucionId, usuarioId, mensaje);
+        sobre.put("sesionId", sesionId);
+        publicarAlTerminar(sobre);
+    }
+
+    @Override
     public void alRecibir(String texto) {
 
         try {
@@ -104,8 +116,19 @@ public class EnVivoServiceImpl implements EnVivoService {
 
             TextMessage mensaje = new TextMessage(mapper.writeValueAsString(sobre.get("mensaje")));
 
+            // con sesionId solo va a las conexiones de esa sesion, y se cortan
+            String sesionId = null;
+            if (sobre.hasNonNull("sesionId")) {
+                sesionId = sobre.get("sesionId").asText();
+            }
+
             for (WebSocketSession sesion : suyas) {
-                enviar(sesion, mensaje);
+                if (sesionId == null) {
+                    enviar(sesion, mensaje);
+                } else if (sesionId.equals(sesion.getAttributes().get("sesionId"))) {
+                    enviar(sesion, mensaje);
+                    cortar(sesion);
+                }
             }
         } catch (JsonProcessingException e) {
             LOG.warn("Aviso de notificacion invalido: {}", e.getMessage());
@@ -115,11 +138,19 @@ public class EnVivoServiceImpl implements EnVivoService {
     // ---------------------------------------------------------------- ayudas
 
     private void publicarAlTerminar(long institucionId, long usuarioId, ObjectNode mensaje) {
+        publicarAlTerminar(sobre(institucionId, usuarioId, mensaje));
+    }
+
+    private ObjectNode sobre(long institucionId, long usuarioId, ObjectNode mensaje) {
 
         ObjectNode sobre = mapper.createObjectNode();
         sobre.put("institucionId", institucionId);
         sobre.put("usuarioId", usuarioId);
         sobre.set("mensaje", mensaje);
+        return sobre;
+    }
+
+    private void publicarAlTerminar(ObjectNode sobre) {
 
         String texto;
         try {
@@ -161,6 +192,15 @@ public class EnVivoServiceImpl implements EnVivoService {
             sesion.sendMessage(mensaje);
         } catch (IOException | RuntimeException e) {
             LOG.debug("No se pudo enviar a una conexion: {}", e.getMessage());
+        }
+    }
+
+    private void cortar(WebSocketSession sesion) {
+
+        try {
+            sesion.close(CloseStatus.NORMAL);
+        } catch (IOException | RuntimeException e) {
+            LOG.debug("No se pudo cerrar una conexion: {}", e.getMessage());
         }
     }
 

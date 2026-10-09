@@ -17,6 +17,9 @@ public interface EnVivoService {
     // el usuario marco leidas: sus otras pestanas actualizan el contador
     void avisarLeidas(long institucionId, long usuarioId);
 
+    // se cerro esa sesion (superadmin, inactivacion...): su navegador sale al instante y se corta la conexion
+    void avisarSesionCerrada(long institucionId, long usuarioId, String sesionId);
+
     // lo llama redis con cada aviso publicado por cualquier servidor
     void alRecibir(String mensaje);
 }

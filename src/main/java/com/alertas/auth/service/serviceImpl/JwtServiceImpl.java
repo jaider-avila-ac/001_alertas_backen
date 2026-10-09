@@ -35,6 +35,12 @@ public class JwtServiceImpl implements JwtService {
 
     @Override
     public String generar(Long usuarioId, Long institucionId, String slug, Rol rol, boolean debeCambiarContrasena) {
+        return generar(usuarioId, institucionId, slug, rol, debeCambiarContrasena, null);
+    }
+
+    @Override
+    public String generar(
+            Long usuarioId, Long institucionId, String slug, Rol rol, boolean debeCambiarContrasena, String sesionId) {
 
         Instant ahora = Instant.now();
 
@@ -48,6 +54,10 @@ public class JwtServiceImpl implements JwtService {
 
         if (debeCambiarContrasena) {
             builder.claim("cambiar", true);
+        }
+
+        if (sesionId != null) {
+            builder.claim("sid", sesionId);
         }
 
         if (institucionId != null) {
@@ -99,7 +109,8 @@ public class JwtServiceImpl implements JwtService {
                 claims.get("slug", String.class),
                 rol,
                 debeCambiar,
-                Instant.ofEpochMilli(emitido.longValue()));
+                Instant.ofEpochMilli(emitido.longValue()),
+                claims.get("sid", String.class));
     }
 
     @Override

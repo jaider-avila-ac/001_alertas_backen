@@ -54,7 +54,7 @@ public class SecurityConfig {
         http.authorizeHttpRequests(a -> a
                 .requestMatchers("/actuator/health", "/error").permitAll()
                 // el websocket se autentica con un ticket de un solo uso (ver notificacion/config)
-                .requestMatchers("/ws/notificaciones").permitAll()
+                .requestMatchers("/ws/notificaciones", "/ws/superadmin").permitAll()
                 .requestMatchers("/api/v1/public/**").permitAll()
                 .requestMatchers("/api/v1/superadmin/auth/login").permitAll()
                 .requestMatchers("/api/v1/superadmin/**").hasRole("SUPERADMIN")

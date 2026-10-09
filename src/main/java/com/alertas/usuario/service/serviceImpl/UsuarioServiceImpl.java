@@ -1,6 +1,7 @@
 package com.alertas.usuario.service.serviceImpl;
 
 import com.alertas.auth.model.Rol;
+import com.alertas.auth.model.UsuarioAutenticado;
 import com.alertas.auth.service.SesionService;
 import com.alertas.bitacora.service.BitacoraService;
 import com.alertas.shared.TenantSupport;
@@ -272,8 +273,13 @@ public class UsuarioServiceImpl implements UsuarioService {
         usuario.setDebeCambiarContrasena(false);
         usuario.setContrasenaCambiadaEn(OffsetDateTime.now());
 
-        // se cierra en los otros equipos. el que la cambio recibe un token nuevo
-        sesionService.cerrarSesiones(institucionId, usuarioId);
+        // se cierra en los otros equipos. el que la cambio sigue en su sesion con un token nuevo
+        String sesionActual = null;
+        UsuarioAutenticado quien = UsuarioAutenticado.actual();
+        if (quien != null) {
+            sesionActual = quien.sesionId();
+        }
+        sesionService.cerrarSesiones(institucionId, usuarioId, sesionActual);
     }
 
     @Override

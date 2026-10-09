@@ -9,6 +9,7 @@ import com.alertas.auth.model.UsuarioAutenticado;
 import com.alertas.auth.service.AuthService;
 import com.alertas.auth.service.JwtService;
 import com.alertas.auth.service.LimiteIntentosService;
+import com.alertas.auth.service.SesionService;
 import com.alertas.estudiante.service.EstudianteService;
 import com.alertas.institucion.dto.EstadoInstitucion;
 import com.alertas.institucion.dto.InstitucionPublicaResponse;
@@ -36,6 +37,7 @@ public class AuthServiceImpl implements AuthService {
     private final InstitucionService institucionService;
     private final JwtService jwtService;
     private final LimiteIntentosService limiteIntentos;
+    private final SesionService sesionService;
     private final PasswordEncoder passwordEncoder;
     private final EntityManager em;
 
@@ -46,6 +48,7 @@ public class AuthServiceImpl implements AuthService {
             InstitucionService institucionService,
             JwtService jwtService,
             LimiteIntentosService limiteIntentos,
+            SesionService sesionService,
             PasswordEncoder passwordEncoder,
             EntityManager em) {
 
@@ -55,13 +58,14 @@ public class AuthServiceImpl implements AuthService {
         this.institucionService = institucionService;
         this.jwtService = jwtService;
         this.limiteIntentos = limiteIntentos;
+        this.sesionService = sesionService;
         this.passwordEncoder = passwordEncoder;
         this.em = em;
     }
 
     @Override
     @Transactional
-    public LoginResponse login(LoginRequest request, String ip) {
+    public LoginResponse login(LoginRequest request, String ip, String userAgent) {
 
         Long institucionId = TenantSupport.requireTenant(em);
         String documento = request.usuario().trim();
@@ -100,9 +104,30 @@ public class AuthServiceImpl implements AuthService {
         // porque se quedaria atrapado en la pantalla de cambio
         boolean debeCambiar = usuario.isDebeCambiarContrasena() && usuario.getRol() != Rol.ADMIN;
 
-        String token = jwtService.generar(usuario.getId(), institucionId, estado.slug(), usuario.getRol(), debeCambiar);
+        NombrePersona nombre = buscarNombre(usuario);
+        String nombres = usuario.getUsuario();
+        String apellidos = "";
+        if (nombre != null) {
+            nombres = nombre.nombres();
+            apellidos = nombre.apellidos();
+        }
+
+        String sesionId = sesionService.abrir(
+                institucionId, usuario.getId(), usuario.getRol(), userAgent, usuario.getUsuario(), nombres, apellidos);
+        String token = jwtService.generar(
+                usuario.getId(), institucionId, estado.slug(), usuario.getRol(), debeCambiar, sesionId);
 
         return new LoginResponse(token, armarPerfil(usuario));
+    }
+
+    @Override
+    public void salir() {
+
+        UsuarioAutenticado actual = UsuarioAutenticado.actual();
+
+        if (actual.institucionId() != null && actual.sesionId() != null) {
+            sesionService.cerrar(actual.institucionId(), actual.sesionId());
+        }
     }
 
     @Override
@@ -125,9 +150,23 @@ public class AuthServiceImpl implements AuthService {
         usuarioService.cambiarContrasenaPropia(actual.id(), request.actual(), request.nueva());
 
         Usuario usuario = usuarioService.buscarPorId(actual.id());
-        String token = jwtService.generar(usuario.getId(), institucionId, actual.slug(), usuario.getRol(), false);
+        // sigue en la misma sesion; las de otros equipos ya se cerraron
+        String token = jwtService.generar(
+                usuario.getId(), institucionId, actual.slug(), usuario.getRol(), false, actual.sesionId());
 
         return new LoginResponse(token, armarPerfil(usuario));
+    }
+
+    // del personal o del estudiante, null si no tiene (no deberia pasar)
+    private NombrePersona buscarNombre(Usuario usuario) {
+
+        NombrePersona nombre = personalService.buscarNombre(usuario.getId());
+
+        if (nombre == null) {
+            nombre = estudianteService.buscarNombre(usuario.getId());
+        }
+
+        return nombre;
     }
 
     private PerfilResponse armarPerfil(Usuario usuario) {
@@ -135,11 +174,7 @@ public class AuthServiceImpl implements AuthService {
         String nombres = usuario.getUsuario();
         String apellidos = "";
 
-        NombrePersona nombre = personalService.buscarNombre(usuario.getId());
-
-        if (nombre == null) {
-            nombre = estudianteService.buscarNombre(usuario.getId());
-        }
+        NombrePersona nombre = buscarNombre(usuario);
 
         if (nombre != null) {
             nombres = nombre.nombres();

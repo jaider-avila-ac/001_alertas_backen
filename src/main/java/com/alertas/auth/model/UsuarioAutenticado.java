@@ -5,14 +5,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 // lo que viene dentro del token. el superadmin no tiene institucion ni slug.
-// debeCambiarContrasena: todavia usa la contrasena asignada. no bloquea nada, el front sugiere cambiarla
+// debeCambiarContrasena: todavia usa la contrasena asignada. no bloquea nada, el front sugiere cambiarla.
+// sesionId: codigo de la sesion abierta al entrar (null en el superadmin y en tokens viejos)
 public record UsuarioAutenticado(
         Long id,
         Long institucionId,
         String slug,
         Rol rol,
         boolean debeCambiarContrasena,
-        Instant emitidoEn) {
+        Instant emitidoEn,
+        String sesionId) {
 
     public boolean esSuperadmin() {
         return rol == Rol.SUPERADMIN;
