@@ -239,7 +239,7 @@ class EstructuraTest extends IntegracionTest {
 
         crearGrupo(colegio, actual, septimo, "B")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("El anio " + ESTE_ANIO + " ya paso, sus grupos no se pueden cambiar"));
+                .andExpect(jsonPath("$.message").value("El año " + ESTE_ANIO + " ya paso, sus grupos no se pueden cambiar"));
 
         // y ahora el grado si se puede apagar: su grupo quedo en un anio pasado
         mvc.perform(patch("/api/v1/grados/" + septimo + "/estado").header("Authorization", colegio.admin())

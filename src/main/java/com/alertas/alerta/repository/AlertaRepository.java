@@ -96,6 +96,36 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
             nativeQuery = true)
     Page<AlertaFila> reportadasPor(@Param("usuarioId") Long usuarioId, @Param("estado") String estado, Pageable pageable);
 
+    // todas las alertas de la institucion (para el admin), de la mas nueva a la mas vieja.
+    // estado null = todas, texto busca por nombre o documento del estudiante
+    @Query(value = """
+            SELECT a.ale_codigo AS codigo, a.ale_origen AS origen,
+                   e.est_codigo AS estudianteCodigo, e.est_nombres AS estudianteNombres, e.est_apellidos AS estudianteApellidos,
+                   gr.gra_nombre AS gradoNombre, g.grp_nombre AS grupoNombre, an.anl_anio AS anio,
+                   c.cat_nombre AS categoria, a.ale_nivel AS nivel, a.ale_estado AS estado,
+                   a.ale_peligro_inmediato AS peligroInmediato, a.ale_prioritaria AS prioritaria,
+                   a.ale_fecha_hecho AS fechaHecho, a.ale_creado_en AS creadoEn
+            FROM alertas a
+            JOIN estudiantes e ON e.est_id = a.ale_est_id
+            JOIN grupos g ON g.grp_id = a.ale_grp_id
+            JOIN grados gr ON gr.gra_id = g.grp_gra_id
+            JOIN anios_lectivos an ON an.anl_id = a.ale_anl_id
+            JOIN categorias_alerta c ON c.cat_id = a.ale_cat_id
+            WHERE (CAST(:estado AS text) IS NULL OR a.ale_estado = CAST(:estado AS text))
+              AND (CAST(:texto AS text) IS NULL
+                   OR e.est_busqueda LIKE '%' || lower(f_unaccent(CAST(:texto AS text))) || '%')
+            ORDER BY a.ale_creado_en DESC
+            """,
+            countQuery = """
+            SELECT count(*) FROM alertas a
+            JOIN estudiantes e ON e.est_id = a.ale_est_id
+            WHERE (CAST(:estado AS text) IS NULL OR a.ale_estado = CAST(:estado AS text))
+              AND (CAST(:texto AS text) IS NULL
+                   OR e.est_busqueda LIKE '%' || lower(f_unaccent(CAST(:texto AS text))) || '%')
+            """,
+            nativeQuery = true)
+    Page<AlertaFila> todas(@Param("estado") String estado, @Param("texto") String texto, Pageable pageable);
+
     // detalle con los nombres ya resueltos. devuelve una fila con
     // [nombre de categoria, grado, grupo, anio, nombres de quien reporta, apellidos de quien reporta,
     //  nombres del psicorientador, apellidos del psicorientador, codigo, nombres y apellidos del estudiante]

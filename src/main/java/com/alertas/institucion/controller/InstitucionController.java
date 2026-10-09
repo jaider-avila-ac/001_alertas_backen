@@ -93,6 +93,15 @@ public class InstitucionController {
         return institucionService.crearAdministrador(slug, request);
     }
 
+    @PutMapping("/{slug}/administradores/{codigo}")
+    public AdministradorResponse actualizarAdministrador(
+            @PathVariable String slug,
+            @PathVariable String codigo,
+            @Valid @RequestBody AdministradorRequest request) {
+
+        return institucionService.actualizarAdministrador(slug, codigo, request);
+    }
+
     @PostMapping("/{slug}/administradores/{codigo}/restablecer-contrasena")
     public AdministradorResponse restablecerContrasena(@PathVariable String slug, @PathVariable String codigo) {
         return institucionService.restablecerContrasenaAdministrador(slug, codigo);

@@ -13,6 +13,7 @@ import com.alertas.soporte.IntegracionTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -269,6 +270,74 @@ class InstitucionSuperadminTest extends IntegracionTest {
                 .andExpect(jsonPath("$.activo").value(false));
 
         mvc.perform(get("/api/v1/prueba/tenant").header("Authorization", tokenNuevo)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void elSuperadminEditaLosDatosDelAdministrador() throws Exception {
+
+        JsonNode a = crearInstitucion("Colegio Editar A", "colegio-editar-a", "70707070");
+        JsonNode b = crearInstitucion("Colegio Editar B", "colegio-editar-b", "70707080");
+        String codigoAdmin = a.get("administrador").get("codigo").asText();
+        String adminDeB = b.get("administrador").get("codigo").asText();
+        String ruta = "/api/v1/superadmin/instituciones/colegio-editar-a/administradores/";
+
+        // un segundo administrador en A, para probar el documento repetido
+        mvc.perform(post(ruta.substring(0, ruta.length() - 1))
+                        .header("Authorization", tokenSa)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON).content(json(datosAdmin("70707071"))))
+                .andExpect(status().isCreated());
+
+        Map<String, Object> datos = new HashMap<>();
+        datos.put("tipoDoc", "CC");
+        datos.put("nroDoc", "70707072");
+        datos.put("nombres", "Jaider");
+        datos.put("apellidos", "Avila Correa");
+        datos.put("correo", "jaider@colegio.edu.co");
+        datos.put("celular", "3001234567");
+
+        mvc.perform(put(ruta + codigoAdmin).header("Authorization", tokenSa)
+                        .contentType(MediaType.APPLICATION_JSON).content(json(datos)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombres").value("Jaider"))
+                .andExpect(jsonPath("$.apellidos").value("Avila Correa"))
+                .andExpect(jsonPath("$.nroDoc").value("70707072"))
+                .andExpect(jsonPath("$.correo").value("jaider@colegio.edu.co"));
+
+        // entra con el documento nuevo y la misma contrasena de antes
+        mvc.perform(post("/api/v1/public/colegio-editar-a/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"usuario\":\"70707072\",\"contrasena\":\"70707070\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.perfil.nombres").value("Jaider"));
+        mvc.perform(post("/api/v1/public/colegio-editar-a/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"usuario\":\"70707070\",\"contrasena\":\"70707070\"}"))
+                .andExpect(status().isUnauthorized());
+
+        // documento de otro administrador del mismo colegio
+        datos.put("nroDoc", "70707071");
+        mvc.perform(put(ruta + codigoAdmin).header("Authorization", tokenSa)
+                        .contentType(MediaType.APPLICATION_JSON).content(json(datos)))
+                .andExpect(status().isConflict());
+
+        // sin nombres
+        datos.put("nroDoc", "70707072");
+        datos.put("nombres", "");
+        mvc.perform(put(ruta + codigoAdmin).header("Authorization", tokenSa)
+                        .contentType(MediaType.APPLICATION_JSON).content(json(datos)))
+                .andExpect(status().isBadRequest());
+
+        // el admin de B no se edita entrando por A
+        datos.put("nombres", "Otro");
+        mvc.perform(put(ruta + adminDeB).header("Authorization", tokenSa)
+                        .contentType(MediaType.APPLICATION_JSON).content(json(datos)))
+                .andExpect(status().isNotFound());
+
+        // y el admin del colegio no puede usar esta ruta
+        long idA = idInstitucion("colegio-editar-a");
+        String tokenAdmin = token(idUsuario(idA, "70707072"), idA, "colegio-editar-a", Rol.ADMIN);
+        mvc.perform(put(ruta + codigoAdmin).header("Authorization", tokenAdmin)
+                        .contentType(MediaType.APPLICATION_JSON).content(json(datos)))
+                .andExpect(status().isForbidden());
     }
 
     @Test

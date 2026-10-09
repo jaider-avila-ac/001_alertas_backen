@@ -18,6 +18,9 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -31,6 +34,9 @@ class EstadisticaTest extends IntegracionTest {
 
     @Autowired
     ObjectMapper mapper;
+
+    @Autowired
+    EntityManagerFactory sessionFactory;
 
     private JsonNode leer(MvcResult resultado) throws Exception {
         return mapper.readTree(resultado.getResponse().getContentAsString());
@@ -204,6 +210,34 @@ class EstadisticaTest extends IntegracionTest {
         assertThat(estadisticas(colegio.admin(), "hasta=" + LocalDate.now()).get("indicadores").get("alertas").asLong()).isEqualTo(4);
         mvc.perform(get("/api/v1/estadisticas?desde=" + manana + "&hasta=" + LocalDate.now()).header("Authorization", colegio.admin()))
                 .andExpect(status().isBadRequest());
+
+        // una sola peticion trae tambien lo de los filtros; sin anio se usa el activo
+        JsonNode sinAnio = estadisticas(colegio.admin(), "");
+        assertThat(sinAnio.get("anioId").asLong()).isEqualTo(anio);
+        assertThat(sinAnio.get("indicadores").get("alertas").asLong()).isEqualTo(4);
+        assertThat(sinAnio.get("filtros").get("grupos")).hasSize(2);
+        assertThat(sinAnio.get("filtros").get("categorias").size()).isGreaterThanOrEqualTo(2);
+        assertThat(sinAnio.get("filtros").get("grados").size()).isGreaterThan(5);
+        boolean hayActivo = false;
+        for (JsonNode opcion : sinAnio.get("filtros").get("anios")) {
+            if (opcion.get("activo").asBoolean()) {
+                hayActivo = true;
+            }
+        }
+        assertThat(hayActivo).isTrue();
+        assertThat(estadisticas(colegio.admin(), "todos=true").get("anioId").isNull()).isTrue();
+
+        // maximo 3 consultas a la base por peticion (la del colegio para RLS y dos de datos)
+        String conGrado = "gradoId=" + sinAnio.get("filtros").get("grados").get(0).get("id").asLong();
+        esperarNotificaciones();
+        esperarNotificaciones();
+        Statistics conteo = sessionFactory.unwrap(SessionFactory.class).getStatistics();
+        conteo.setStatisticsEnabled(true);
+        conteo.clear();
+        estadisticas(colegio.admin(), conGrado);
+        long consultas = conteo.getPrepareStatementCount();
+        conteo.setStatisticsEnabled(false);
+        assertThat(consultas).isLessThanOrEqualTo(3);
 
         // el psicorientador tambien las ve; el docente no
         assertThat(estadisticas(psicorientador, "").get("indicadores").get("alertas").asLong()).isEqualTo(4);

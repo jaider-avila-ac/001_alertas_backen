@@ -18,6 +18,9 @@ public interface AlertaService {
     // las que creo el usuario de la sesion. estado null = todas
     PageResponse<AlertaFilaResponse> misReportadas(String estado, int pagina, int tamanio);
 
+    // todas las de la institucion, para el admin. estado y texto null = sin filtro
+    PageResponse<AlertaFilaResponse> todas(String estado, String texto, int pagina, int tamanio);
+
     // la ve quien la creo, el psicorientador y el admin
     AlertaDetalleResponse buscar(String codigo);
 }

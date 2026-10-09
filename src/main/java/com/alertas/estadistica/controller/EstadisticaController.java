@@ -14,7 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-// estadisticas del colegio: el admin y el psicorientador (solo lectura). solo numeros, sin nombres de estudiantes
+// estadisticas del colegio: el admin y el psicorientador (solo lectura). solo numeros, sin nombres de estudiantes.
+// una sola peticion trae los conteos y las listas de los filtros. sin anioId se usa el anio activo; todos=true, todos los anios
 @RestController
 @RequestMapping("/api/v1/estadisticas")
 @PreAuthorize("hasAnyRole('ADMIN', 'PSICORIENTADOR')")
@@ -32,18 +33,20 @@ public class EstadisticaController {
     @GetMapping
     public EstadisticasResponse resumen(
             @RequestParam(required = false) Long anioId,
+            @RequestParam(defaultValue = "false") boolean todos,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(required = false) Long gradoId,
             @RequestParam(required = false) Long grupoId,
             @RequestParam(required = false) Long categoriaId) {
 
-        return estadisticaService.resumen(new FiltroEstadistica(anioId, desde, hasta, gradoId, grupoId, categoriaId));
+        return estadisticaService.resumen(new FiltroEstadistica(anioId, todos, desde, hasta, gradoId, grupoId, categoriaId));
     }
 
     @GetMapping("/excel")
     public ResponseEntity<byte[]> excel(
             @RequestParam(required = false) Long anioId,
+            @RequestParam(defaultValue = "false") boolean todos,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(required = false) Long gradoId,
@@ -51,7 +54,7 @@ public class EstadisticaController {
             @RequestParam(required = false) Long categoriaId) {
 
         byte[] contenido = estadisticaService.excel(
-                new FiltroEstadistica(anioId, desde, hasta, gradoId, grupoId, categoriaId));
+                new FiltroEstadistica(anioId, todos, desde, hasta, gradoId, grupoId, categoriaId));
 
         return ResponseEntity.ok()
                 .contentType(EXCEL)

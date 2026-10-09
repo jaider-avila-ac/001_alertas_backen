@@ -1,0 +1,23 @@
+# solo en el servidor de la bd, encima del docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.produccion.yml up -d
+# enciende ssl y usa el pg_hba.conf de esta carpeta (el backend entra solo con ssl y desde su ip).
+# antes: crear certs/server.crt y certs/server.key (ver despliegue/README.md)
+services:
+  postgres:
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/certs/server.crt
+      - -c
+      - ssl_key_file=/certs/server.key
+      - -c
+      - ssl_min_protocol_version=TLSv1.2
+      - -c
+      - password_encryption=scram-sha-256
+      - -c
+      - hba_file=/etc/postgresql/pg_hba.conf
+    volumes:
+      - ./certs:/certs:ro
+      - ./pg_hba.conf:/etc/postgresql/pg_hba.conf:ro

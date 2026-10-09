@@ -24,6 +24,9 @@ public interface PersonalService {
     // falla si no existe o no es administrador
     AdministradorResponse buscarAdministrador(String codigo);
 
+    // si cambia el documento cambia tambien el usuario con el que entra
+    AdministradorResponse actualizarAdministrador(String codigo, AdministradorRequest request);
+
     // id del usuario del administrador, para uso interno del backend (nunca va al front)
     Long usuarioIdDeAdministrador(String codigo);
 

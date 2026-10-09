@@ -11,6 +11,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.util.UUID;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -25,6 +28,9 @@ class EstadisticaGlobalTest extends IntegracionTest {
 
     @Autowired
     ObjectMapper mapper;
+
+    @Autowired
+    EntityManagerFactory fabrica;
 
     private JsonNode leer(MvcResult resultado) throws Exception {
         return mapper.readTree(resultado.getResponse().getContentAsString());
@@ -160,6 +166,19 @@ class EstadisticaGlobalTest extends IntegracionTest {
         }
         assertThat(filasSalud).isEqualTo(1);
         assertThat(todos.get("resumen").get("alertas").asLong()).isGreaterThanOrEqualTo(3);
+
+        // la respuesta ya trae la primera pagina del comparativo y sale de una sola consulta
+        assertThat(todos.get("comparativo").get("contenido").size()).isGreaterThan(0);
+        assertThat(todos.get("comparativo").get("totalElementos").asLong()).isGreaterThanOrEqualTo(2);
+        Statistics conteo = fabrica.unwrap(SessionFactory.class).getStatistics();
+        esperarNotificaciones();
+        conteo.setStatisticsEnabled(true);
+        conteo.clear();
+        mvc.perform(get("/api/v1/superadmin/estadisticas").param("institucion", a.slug()).header("Authorization", sa))
+                .andExpect(status().isOk());
+        long consultas = conteo.getPrepareStatementCount();
+        conteo.setStatisticsEnabled(false);
+        assertThat(consultas).isLessThanOrEqualTo(3);
 
         // comparativo paginado: cada colegio con sus numeros
         long alertasA = -1;

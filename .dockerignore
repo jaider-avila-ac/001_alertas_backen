@@ -1,0 +1,14 @@
+# lo que no debe entrar a la imagen (y nunca el .env: las variables llegan al correr)
+.env
+.env.*
+.git
+.gitattributes
+.gitignore
+.idea
+.vscode
+target
+db
+despliegue
+*.log
+docker-compose.yml
+Dockerfile

@@ -42,6 +42,9 @@ public interface InstitucionService {
 
     AdministradorResponse crearAdministrador(String slug, AdministradorRequest request);
 
+    // nombres, documento, correo y celular del administrador
+    AdministradorResponse actualizarAdministrador(String slug, String codigo, AdministradorRequest request);
+
     AdministradorResponse restablecerContrasenaAdministrador(String slug, String codigo);
 
     AdministradorResponse asignarContrasenaAdministrador(String slug, String codigo, String nueva);

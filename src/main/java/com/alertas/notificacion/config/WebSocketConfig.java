@@ -18,8 +18,7 @@ import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
-import org.springframework.web.socket.server.HandshakeInterceptor;
-
+ 
 // /ws/notificaciones?ticket=... ; el ticket se pide antes con el token (POST /api/v1/notificaciones/ticket)
 @Configuration
 @EnableWebSocket
@@ -59,8 +58,9 @@ public class WebSocketConfig implements WebSocketConfigurer {
         return contenedor;
     }
 
-    // sin ticket valido no hay conexion. el ticket dice de que colegio y usuario es
-    private class ValidarTicket implements HandshakeInterceptor {
+    // sin ticket valido no hay conexion. el ticket dice de que colegio y usuario es.
+    // nombre completo: el editor borraba el import al guardar
+    private class ValidarTicket implements org.springframework.web.socket.server.HandshakeInterceptor {
 
         @Override
         public boolean beforeHandshake(

@@ -273,7 +273,7 @@ public class PromocionServiceImpl implements PromocionService {
             origen = estructuraService.anioActivo();
 
             if (origen == null) {
-                throw ApiException.conflicto("No hay un anio activo");
+                throw ApiException.conflicto("No hay un año activo");
             }
 
             // el anio siguiente mas cercano que ya este creado
@@ -285,7 +285,7 @@ public class PromocionServiceImpl implements PromocionService {
             }
 
             if (siguiente == null) {
-                throw ApiException.conflicto("Crea primero el anio " + (origen.anio() + 1) + " en Grados y grupos");
+                throw ApiException.conflicto("Crea primero el año " + (origen.anio() + 1) + " en Grados y grupos");
             }
 
             destino = siguiente;
@@ -360,7 +360,7 @@ public class PromocionServiceImpl implements PromocionService {
                     return grupo;
                 }
             }
-            throw ApiException.invalido("El grupo destino no es del anio " + destino.anio());
+            throw ApiException.invalido("El grupo destino no es del año " + destino.anio());
         }
 
         private List<GrupoResponse> delGrado(List<GrupoResponse> grupos, Long gradoId) {

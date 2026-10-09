@@ -61,6 +61,28 @@ public class AlertaController {
         return alertaService.misReportadas(filtro, pagina, tamanio);
     }
 
+    // todas las alertas de la institucion, solo el admin
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public PageResponse<AlertaFilaResponse> todas(
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String texto,
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "20") int tamanio) {
+
+        String filtro = null;
+        if ("PENDIENTE".equals(estado) || "EN_PROCESO".equals(estado) || "COMPLETADA".equals(estado)) {
+            filtro = estado;
+        }
+
+        String buscado = null;
+        if (texto != null && !texto.isBlank()) {
+            buscado = texto.trim();
+        }
+
+        return alertaService.todas(filtro, buscado, pagina, tamanio);
+    }
+
     @GetMapping("/{codigo}")
     public AlertaDetalleResponse buscar(@PathVariable String codigo) {
         return alertaService.buscar(codigo);

@@ -285,6 +285,19 @@ public class InstitucionServiceImpl implements InstitucionService {
 
     @Override
     @Transactional
+    public AdministradorResponse actualizarAdministrador(String slug, String codigo, AdministradorRequest request) {
+
+        usarInstitucionPorSlug(slug);
+
+        AdministradorResponse administrador = personalService.actualizarAdministrador(codigo, request);
+        Long usuarioId = personalService.usuarioIdDeAdministrador(codigo);
+        bitacoraService.registrar("EDITAR_ADMINISTRADOR", "usuario", usuarioId, null);
+
+        return administrador;
+    }
+
+    @Override
+    @Transactional
     public AdministradorResponse restablecerContrasenaAdministrador(String slug, String codigo) {
 
         usarInstitucionPorSlug(slug);

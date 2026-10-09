@@ -45,7 +45,7 @@ public final class ExcelEstudiantes {
             {FECHA_NACIMIENTO, "No", "dd/mm/aaaa, ej 25/03/2012"},
             {CELULAR, "No", "10 digitos, empieza por 3"},
             {GRADO, "Si", "Numero o nombre: 6, 6°, Sexto. Transicion = 0"},
-            {GRUPO, "Si", "Como se llama el grupo: A, B, 01... Si no existe en el anio se crea"},
+            {GRUPO, "Si", "Como se llama el grupo: A, B, 01... Si no existe en el año se crea"},
             {FAMILIAR_NOMBRE, "No", "Nombre de un familiar o acudiente"},
             {FAMILIAR_PARENTESCO, "Si hay familiar", "MADRE, PADRE, ACUDIENTE, ABUELO, HERMANO, TIO u OTRO"},
             {FAMILIAR_CELULAR, "No", "10 digitos, empieza por 3. A este numero llegan los SMS"},
@@ -59,7 +59,7 @@ public final class ExcelEstudiantes {
             {"Ejemplo", "", "TI | 1067123456 | Ana Maria | Rios Perez | F | 25/03/2012 | | 6 | A | Luz Perez | MADRE | 3001234567"},
             {"Importante", "", "Si el estudiante ya existe (mismo documento) se actualizan sus datos y su grupo. "
                     + "Una celda vacia no borra lo que ya tenia"},
-            {"Consejo", "", "Para el anio siguiente puedes exportar la lista, cambiar grado y grupo y subirla"},
+            {"Consejo", "", "Para el año siguiente puedes exportar la lista, cambiar grado y grupo y subirla"},
     };
 
     private ExcelEstudiantes() {

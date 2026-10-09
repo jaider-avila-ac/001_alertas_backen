@@ -3,6 +3,7 @@ package com.alertas.estadistica.service.serviceImpl;
 import com.alertas.estadistica.dto.ConteoResponse;
 import com.alertas.estadistica.dto.EstadisticasResponse;
 import com.alertas.estadistica.dto.FiltroEstadistica;
+import com.alertas.estadistica.dto.FiltrosDisponiblesResponse;
 import com.alertas.estadistica.dto.IndicadoresResponse;
 import com.alertas.estadistica.dto.PsicorientadorConteoResponse;
 import com.alertas.estadistica.repository.EstadisticaRepository;
@@ -12,6 +13,9 @@ import com.alertas.shared.TenantSupport;
 import com.alertas.shared.excel.ArchivoExcel;
 import com.alertas.shared.excel.HojaExcel;
 import com.alertas.shared.exception.ApiException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -40,13 +44,16 @@ public class EstadisticaServiceImpl implements EstadisticaService {
         {"ESTUDIANTE", "Estudiante (pidio ayuda)"}};
 
     private final EstadisticaRepository repository;
+    private final ObjectMapper mapper;
     private final EntityManager em;
 
-    public EstadisticaServiceImpl(EstadisticaRepository repository, EntityManager em) {
+    public EstadisticaServiceImpl(EstadisticaRepository repository, ObjectMapper mapper, EntityManager em) {
         this.repository = repository;
+        this.mapper = mapper;
         this.em = em;
     }
 
+    // una consulta para fijar el colegio (RLS) y dos de datos
     @Override
     @Transactional(readOnly = true)
     public EstadisticasResponse resumen(FiltroEstadistica filtro) {
@@ -55,68 +62,77 @@ public class EstadisticaServiceImpl implements EstadisticaService {
         validar(filtro);
 
         String zona = ZoneId.systemDefault().getId();
+        JsonNode alertas = leer(repository.alertas(filtro, zona));
+        JsonNode otros = leer(repository.citasYFiltros(filtro, zona));
 
-        Object[] estados = repository.estados(filtro, zona);
-        Object[] primeraCita = repository.primeraCita(filtro, zona);
-        Object[] citas = repository.citas(filtro, zona);
-        Object[] valoraciones = repository.valoraciones(filtro, zona);
+        JsonNode estados = alertas.get("estados");
+        JsonNode primeraCita = alertas.get("primeraCita");
+        JsonNode citas = otros.get("citas");
+        JsonNode valoraciones = otros.get("valoraciones");
 
         Double horas = null;
-        if (primeraCita[0] != null) {
-            horas = ((Number) primeraCita[0]).doubleValue();
+        if (!primeraCita.get(0).isNull()) {
+            horas = primeraCita.get(0).asDouble();
         }
 
         IndicadoresResponse indicadores = new IndicadoresResponse(
-                numero(estados[0]),
-                numero(estados[1]),
-                numero(estados[2]),
-                numero(estados[3]),
-                numero(estados[4]),
-                numero(estados[5]),
-                numero(citas[0]),
-                numero(citas[1]),
-                numero(citas[2]),
-                numero(citas[3]),
+                estados.get(0).asLong(),
+                estados.get(1).asLong(),
+                estados.get(2).asLong(),
+                estados.get(3).asLong(),
+                estados.get(4).asLong(),
+                estados.get(5).asLong(),
+                citas.get(0).asLong(),
+                citas.get(1).asLong(),
+                citas.get(2).asLong(),
+                citas.get(3).asLong(),
                 horas,
-                numero(primeraCita[1]),
-                numero(valoraciones[0]),
-                numero(valoraciones[1]));
+                primeraCita.get(1).asLong(),
+                valoraciones.get(0).asLong(),
+                valoraciones.get(1).asLong());
 
         List<ConteoResponse> porCategoria = new ArrayList<>();
-        for (Object[] fila : repository.porCategoria(filtro, zona)) {
-            porCategoria.add(new ConteoResponse((String) fila[0], (String) fila[0], numero(fila[1])));
+        for (JsonNode fila : alertas.get("porCategoria")) {
+            porCategoria.add(new ConteoResponse(fila.get(0).asText(), fila.get(0).asText(), fila.get(1).asLong()));
         }
 
         List<ConteoResponse> porGrupo = new ArrayList<>();
-        for (Object[] fila : repository.porGrupo(filtro, zona)) {
-            String etiqueta = fila[0] + " " + fila[1];
-            // sin filtro de anio pueden salir grupos de varios anios
-            if (filtro.anioId() == null) {
-                etiqueta = etiqueta + " " + fila[2];
+        for (JsonNode fila : alertas.get("porGrupo")) {
+            String etiqueta = fila.get(0).asText() + " " + fila.get(1).asText();
+            // viendo todos los anios pueden salir grupos de varios
+            if (filtro.todosLosAnios()) {
+                etiqueta = etiqueta + " " + fila.get(2).asInt();
             }
-            porGrupo.add(new ConteoResponse(etiqueta, etiqueta, numero(fila[3])));
+            porGrupo.add(new ConteoResponse(etiqueta, etiqueta, fila.get(3).asLong()));
         }
 
         List<PsicorientadorConteoResponse> porPsicorientador = new ArrayList<>();
-        for (Object[] fila : repository.porPsicorientador(filtro, zona)) {
-            porPsicorientador.add(new PsicorientadorConteoResponse((String) fila[0], numero(fila[1]), numero(fila[2])));
+        for (JsonNode fila : alertas.get("porPsicorientador")) {
+            porPsicorientador.add(new PsicorientadorConteoResponse(
+                    fila.get(0).asText(), fila.get(1).asLong(), fila.get(2).asLong()));
         }
 
-        // los rangos siempre (tambien en 0) y al final los que no tienen fecha, solo si hay
-        List<Object[]> filasEdad = repository.porEdad(filtro, zona);
-        List<ConteoResponse> porEdad = enOrden(filasEdad, EDADES, true);
-        porEdad.addAll(enOrden(filasEdad, SIN_EDAD, false));
+        // los rangos de edad siempre (tambien en 0) y al final los que no tienen fecha, solo si hay
+        List<ConteoResponse> porEdad = enOrden(alertas.get("porEdad"), EDADES, true);
+        porEdad.addAll(enOrden(alertas.get("porEdad"), SIN_EDAD, false));
+
+        Long anioAplicado = null;
+        if (!otros.get("anioAplicado").isNull()) {
+            anioAplicado = otros.get("anioAplicado").asLong();
+        }
 
         return new EstadisticasResponse(
+                anioAplicado,
                 indicadores,
-                porMes(repository.porMes(filtro, zona)),
+                porMes(alertas.get("porMes")),
                 porCategoria,
-                enOrden(repository.porNivel(filtro, zona), NIVELES, true),
+                enOrden(alertas.get("porNivel"), NIVELES, true),
                 porGrupo,
-                enOrden(repository.porGenero(filtro, zona), GENEROS, false),
+                enOrden(alertas.get("porGenero"), GENEROS, false),
                 porEdad,
-                enOrden(repository.porOrigen(filtro, zona), ORIGENES, false),
-                porPsicorientador);
+                enOrden(alertas.get("porOrigen"), ORIGENES, false),
+                porPsicorientador,
+                filtros(otros));
     }
 
     @Override
@@ -125,14 +141,23 @@ public class EstadisticaServiceImpl implements EstadisticaService {
 
         EstadisticasResponse resumen = resumen(filtro);
         IndicadoresResponse ind = resumen.indicadores();
+        FiltrosDisponiblesResponse opciones = resumen.filtros();
+
+        // los nombres de los filtros salen de las mismas listas: sin consultas de mas
+        String anio = "Todos";
+        for (FiltrosDisponiblesResponse.Anio opcion : opciones.anios()) {
+            if (opcion.id().equals(resumen.anioId())) {
+                anio = String.valueOf(opcion.anio());
+            }
+        }
 
         List<Object[]> filtros = new ArrayList<>();
-        filtros.add(new Object[] {"Anio lectivo", textoFiltro(repository.nombreAnio(filtro.anioId()))});
+        filtros.add(new Object[] {"Año lectivo", anio});
         filtros.add(new Object[] {"Desde", textoFiltro(filtro.desde())});
         filtros.add(new Object[] {"Hasta", textoFiltro(filtro.hasta())});
-        filtros.add(new Object[] {"Grado", textoFiltro(repository.nombreGrado(filtro.gradoId()))});
-        filtros.add(new Object[] {"Grupo", textoFiltro(repository.nombreGrupo(filtro.grupoId()))});
-        filtros.add(new Object[] {"Categoria", textoFiltro(repository.nombreCategoria(filtro.categoriaId()))});
+        filtros.add(new Object[] {"Grado", nombreDe(opciones.grados(), filtro.gradoId())});
+        filtros.add(new Object[] {"Grupo", nombreDeGrupo(opciones, filtro.grupoId())});
+        filtros.add(new Object[] {"Categoria", nombreDe(opciones.categorias(), filtro.categoriaId())});
         filtros.add(new Object[] {"", ""});
         filtros.add(new Object[] {"Alertas", ind.alertas()});
         filtros.add(new Object[] {"Pendientes", ind.pendientes()});
@@ -159,7 +184,7 @@ public class EstadisticaServiceImpl implements EstadisticaService {
         hojas.add(hoja("Por nivel", "Nivel", resumen.porNivel()));
         hojas.add(hoja("Por grado y grupo", "Grupo", resumen.porGrupo()));
         hojas.add(hoja("Por genero", "Genero", resumen.porGenero()));
-        hojas.add(hoja("Por edad", "Edad (anios)", resumen.porEdad()));
+        hojas.add(hoja("Por edad", "Edad (años)", resumen.porEdad()));
         hojas.add(hoja("Por origen", "Quien la creo", resumen.porOrigen()));
 
         List<Object[]> psicorientadores = new ArrayList<>();
@@ -181,8 +206,42 @@ public class EstadisticaServiceImpl implements EstadisticaService {
         }
     }
 
+    private JsonNode leer(String json) {
+
+        try {
+            return mapper.readTree(json);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("La base devolvio un json invalido en estadisticas", e);
+        }
+    }
+
+    private FiltrosDisponiblesResponse filtros(JsonNode otros) {
+
+        List<FiltrosDisponiblesResponse.Anio> anios = new ArrayList<>();
+        for (JsonNode fila : otros.get("anios")) {
+            anios.add(new FiltrosDisponiblesResponse.Anio(fila.get(0).asLong(), fila.get(1).asInt(), fila.get(2).asBoolean()));
+        }
+
+        List<FiltrosDisponiblesResponse.Opcion> grados = new ArrayList<>();
+        for (JsonNode fila : otros.get("grados")) {
+            grados.add(new FiltrosDisponiblesResponse.Opcion(fila.get(0).asLong(), fila.get(1).asText()));
+        }
+
+        List<FiltrosDisponiblesResponse.Grupo> grupos = new ArrayList<>();
+        for (JsonNode fila : otros.get("grupos")) {
+            grupos.add(new FiltrosDisponiblesResponse.Grupo(fila.get(0).asLong(), fila.get(1).asText(), fila.get(2).asLong()));
+        }
+
+        List<FiltrosDisponiblesResponse.Opcion> categorias = new ArrayList<>();
+        for (JsonNode fila : otros.get("categorias")) {
+            categorias.add(new FiltrosDisponiblesResponse.Opcion(fila.get(0).asLong(), fila.get(1).asText()));
+        }
+
+        return new FiltrosDisponiblesResponse(anios, grados, grupos, categorias);
+    }
+
     // todos los meses entre el primero y el ultimo, los que no tienen alertas en 0
-    private List<ConteoResponse> porMes(List<Object[]> filas) {
+    private List<ConteoResponse> porMes(JsonNode filas) {
 
         List<ConteoResponse> respuesta = new ArrayList<>();
         if (filas.isEmpty()) {
@@ -190,12 +249,12 @@ public class EstadisticaServiceImpl implements EstadisticaService {
         }
 
         Map<String, Long> totales = new HashMap<>();
-        for (Object[] fila : filas) {
-            totales.put((String) fila[0], numero(fila[1]));
+        for (JsonNode fila : filas) {
+            totales.put(fila.get(0).asText(), fila.get(1).asLong());
         }
 
-        YearMonth mes = YearMonth.parse((String) filas.get(0)[0]);
-        YearMonth ultimo = YearMonth.parse((String) filas.get(filas.size() - 1)[0]);
+        YearMonth mes = YearMonth.parse(filas.get(0).get(0).asText());
+        YearMonth ultimo = YearMonth.parse(filas.get(filas.size() - 1).get(0).asText());
 
         while (!mes.isAfter(ultimo)) {
             String clave = mes.toString();
@@ -211,11 +270,11 @@ public class EstadisticaServiceImpl implements EstadisticaService {
     }
 
     // en el orden fijo; conCeros: tambien los que no tienen alertas
-    private List<ConteoResponse> enOrden(List<Object[]> filas, String[][] orden, boolean conCeros) {
+    private List<ConteoResponse> enOrden(JsonNode filas, String[][] orden, boolean conCeros) {
 
         Map<String, Long> totales = new HashMap<>();
-        for (Object[] fila : filas) {
-            totales.put((String) fila[0], numero(fila[1]));
+        for (JsonNode fila : filas) {
+            totales.put(fila.get(0).asText(), fila.get(1).asLong());
         }
 
         List<ConteoResponse> respuesta = new ArrayList<>();
@@ -240,19 +299,37 @@ public class EstadisticaServiceImpl implements EstadisticaService {
         return new HojaExcel(nombre, new String[] {columna, "Alertas"}, filas);
     }
 
+    private String nombreDe(List<FiltrosDisponiblesResponse.Opcion> opciones, Long id) {
+
+        if (id == null) {
+            return "Todos";
+        }
+        for (FiltrosDisponiblesResponse.Opcion opcion : opciones) {
+            if (opcion.id().equals(id)) {
+                return opcion.nombre();
+            }
+        }
+        return "Todos";
+    }
+
+    private String nombreDeGrupo(FiltrosDisponiblesResponse opciones, Long id) {
+
+        if (id == null) {
+            return "Todos";
+        }
+        for (FiltrosDisponiblesResponse.Grupo grupo : opciones.grupos()) {
+            if (grupo.id().equals(id)) {
+                return nombreDe(opciones.grados(), grupo.gradoId()) + " " + grupo.nombre();
+            }
+        }
+        return "Todos";
+    }
+
     private String textoFiltro(Object valor) {
 
         if (valor == null) {
             return "Todos";
         }
         return String.valueOf(valor);
-    }
-
-    private long numero(Object valor) {
-
-        if (valor == null) {
-            return 0;
-        }
-        return ((Number) valor).longValue();
     }
 }

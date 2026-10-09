@@ -91,7 +91,7 @@ public class CitaServiceImpl implements CitaService {
 
         Matricula matricula = matriculaService.delAnioActivo(estudiante.id());
         if (matricula == null || Matricula.RETIRADA.equals(matricula.getEstado())) {
-            throw ApiException.conflicto("El estudiante no tiene matricula en el anio activo");
+            throw ApiException.conflicto("El estudiante no tiene matricula en el año activo");
         }
 
         Cita programada = repository.findByEstudianteIdAndEstado(estudiante.id(), Cita.PROGRAMADA);

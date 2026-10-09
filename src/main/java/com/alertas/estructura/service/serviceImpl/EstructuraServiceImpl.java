@@ -109,7 +109,7 @@ public class EstructuraServiceImpl implements EstructuraService {
 
             if (activoActual != null && grupoRepository.contarDelGradoDesde(gradoId, activoActual.getAnio()) > 0) {
                 throw ApiException.conflicto("El grado " + grado.getNombre()
-                        + " tiene grupos en el anio activo o en uno futuro. Borra esos grupos antes de apagarlo");
+                        + " tiene grupos en el año activo o en uno futuro. Borra esos grupos antes de apagarlo");
             }
         }
 
@@ -142,7 +142,7 @@ public class EstructuraServiceImpl implements EstructuraService {
         Long institucionId = TenantSupport.requireTenant(em);
 
         if (anioRepository.existsByAnio(anio)) {
-            throw ApiException.conflicto("El anio " + anio + " ya existe");
+            throw ApiException.conflicto("El año " + anio + " ya existe");
         }
 
         // se crea apagado: el admin lo prepara (grupos, estudiantes) y lo activa cuando empiece
@@ -165,7 +165,7 @@ public class EstructuraServiceImpl implements EstructuraService {
         AnioLectivo anio = obtenerAnio(anioId);
 
         if (anio.isActivo()) {
-            throw ApiException.conflicto("El anio " + anio.getAnio() + " ya es el activo");
+            throw ApiException.conflicto("El año " + anio.getAnio() + " ya es el activo");
         }
 
         anioRepository.desactivarTodos();
@@ -186,11 +186,11 @@ public class EstructuraServiceImpl implements EstructuraService {
         AnioLectivo anio = obtenerAnio(anioId);
 
         if (anio.isActivo()) {
-            throw ApiException.conflicto("No se puede borrar el anio activo");
+            throw ApiException.conflicto("No se puede borrar el año activo");
         }
 
         if (grupoRepository.countByAnioId(anioId) > 0) {
-            throw ApiException.conflicto("El anio " + anio.getAnio() + " tiene grupos, borralos primero");
+            throw ApiException.conflicto("El año " + anio.getAnio() + " tiene grupos, borralos primero");
         }
 
         anioRepository.delete(anio);
@@ -367,7 +367,7 @@ public class EstructuraServiceImpl implements EstructuraService {
         AnioLectivo activo = anioRepository.findByActivoTrue().orElse(null);
 
         if (activo != null && anio.getAnio() < activo.getAnio()) {
-            throw ApiException.invalido("El anio " + anio.getAnio() + " ya paso, sus grupos no se pueden cambiar");
+            throw ApiException.invalido("El año " + anio.getAnio() + " ya paso, sus grupos no se pueden cambiar");
         }
     }
 
@@ -387,7 +387,7 @@ public class EstructuraServiceImpl implements EstructuraService {
         AnioLectivo anio = anioRepository.findById(anioId).orElse(null);
 
         if (anio == null) {
-            throw ApiException.noEncontrado("El anio lectivo no existe");
+            throw ApiException.noEncontrado("El año lectivo no existe");
         }
 
         return anio;

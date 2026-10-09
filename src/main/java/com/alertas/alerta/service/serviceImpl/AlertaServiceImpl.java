@@ -154,7 +154,7 @@ public class AlertaServiceImpl implements AlertaService {
 
         if (matricula == null || Matricula.RETIRADA.equals(matricula.getEstado())) {
             throw ApiException.conflicto(estudiante.nombres() + " " + estudiante.apellidos()
-                    + " no tiene matricula en el anio activo. El administrador debe asignarle un grupo");
+                    + " no tiene matricula en el año activo. El administrador debe asignarle un grupo");
         }
 
         categoriaService.buscarActiva(categoriaId);
@@ -246,6 +246,23 @@ public class AlertaServiceImpl implements AlertaService {
 
         PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0), limitarTamanio(tamanio));
         Page<AlertaFila> page = repository.reportadasPor(UsuarioAutenticado.actual().id(), estado, pageRequest);
+
+        List<AlertaFilaResponse> contenido = new ArrayList<>();
+        for (AlertaFila fila : page.getContent()) {
+            contenido.add(AlertaFilaResponse.desde(fila));
+        }
+
+        return PageResponse.de(contenido, page);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AlertaFilaResponse> todas(String estado, String texto, int pagina, int tamanio) {
+
+        TenantSupport.requireTenant(em);
+
+        PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0), limitarTamanio(tamanio));
+        Page<AlertaFila> page = repository.todas(estado, texto, pageRequest);
 
         List<AlertaFilaResponse> contenido = new ArrayList<>();
         for (AlertaFila fila : page.getContent()) {

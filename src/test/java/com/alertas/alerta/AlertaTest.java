@@ -240,6 +240,35 @@ class AlertaTest extends IntegracionTest {
     }
 
     @Test
+    void elAdminVeTodasLasAlertasDeSuColegio() throws Exception {
+
+        Escenario e = escenario("ale-todas", "63640000");
+        String otroDocente = crearPersonal(e.colegio(), "636400003", Rol.DOCENTE);
+        crear(e.docente(), alerta(e, "ALTO"));
+        crear(otroDocente, alerta(e, "LEVE"));
+
+        // otro colegio con su alerta: no se debe ver
+        Escenario otro = escenario("ale-todas-otro", "63650000");
+        crear(otro.docente(), alerta(otro, "CRITICO"));
+
+        mvc.perform(get("/api/v1/alertas").header("Authorization", e.colegio().admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElementos").value(2));
+        mvc.perform(get("/api/v1/alertas").param("estado", "PENDIENTE").param("texto", "ana")
+                        .header("Authorization", e.colegio().admin()))
+                .andExpect(jsonPath("$.totalElementos").value(2));
+        mvc.perform(get("/api/v1/alertas").param("texto", "nadie se llama asi")
+                        .header("Authorization", e.colegio().admin()))
+                .andExpect(jsonPath("$.totalElementos").value(0));
+        mvc.perform(get("/api/v1/alertas").param("estado", "COMPLETADA").header("Authorization", e.colegio().admin()))
+                .andExpect(jsonPath("$.totalElementos").value(0));
+
+        // el docente solo tiene sus alertas
+        mvc.perform(get("/api/v1/alertas").header("Authorization", e.docente()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void elEstudiantePideAyuda() throws Exception {
 
         Escenario e = escenario("ale-ayuda", "64640000");

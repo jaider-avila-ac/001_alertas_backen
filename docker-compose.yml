@@ -1,4 +1,6 @@
-# la bd no va aqui, se despliega aparte (ver db/)
+# backend y redis. la bd no va aqui: se despliega en su propio servidor (ver db/ y despliegue/)
+# desarrollo:  docker compose up -d redis        (el backend corre con mvnw)
+# servidor:    docker compose up -d --build      (backend + redis)
 name: alertas
 
 services:
@@ -10,6 +12,7 @@ services:
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     ports:
+      # solo para desarrollo (el backend local lo usa). el backend en docker entra por la red interna
       - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redisdata:/data
@@ -18,6 +21,34 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  backend:
+    build: .
+    image: alertas-backend
+    container_name: alertas-backend
+    restart: unless-stopped
+    # las mismas variables del .env (DB_URL apunta al servidor de la bd)
+    env_file: .env
+    environment:
+      # dentro de docker redis se llama por el nombre del servicio
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      TZ: America/Bogota
+    ports:
+      # solo en la maquina: desde afuera se entra por nginx
+      - "127.0.0.1:${BACKEND_PORT:-8085}:8085"
+    extra_hosts:
+      # si la bd corre en la misma maquina (pruebas), DB_URL puede usar host.docker.internal
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8085/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
 
 volumes:
   redisdata:

@@ -11,6 +11,6 @@ public record ValoracionesConfigRequest(
 
         @NotNull(message = "Falta indicar cada cuantos dias")
         @Min(value = 1, message = "Minimo 1 dia")
-        @Max(value = 730, message = "Maximo 730 dias (dos anios)")
+        @Max(value = 730, message = "Maximo 730 dias (dos años)")
         Integer dias) {
 }

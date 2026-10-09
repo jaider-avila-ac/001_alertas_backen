@@ -127,7 +127,7 @@ public class ValoracionServiceImpl implements ValoracionService {
         Matricula matricula = matriculaService.delAnioActivo(estudiante.id());
         if (matricula == null || Matricula.RETIRADA.equals(matricula.getEstado())) {
             throw ApiException.conflicto(estudiante.nombreCompleto()
-                    + " no tiene matricula en el anio activo. El administrador debe asignarle un grupo");
+                    + " no tiene matricula en el año activo. El administrador debe asignarle un grupo");
         }
 
         Valoracion valoracion = new Valoracion();

@@ -2,6 +2,8 @@ package com.alertas.notificacion.config;
 
 import com.alertas.notificacion.service.ColaNotificacionesService;
 import java.time.Duration;
+import java.util.function.Predicate;
+import org.springframework.core.NestedExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -42,11 +44,16 @@ public class ColaNotificacionesConfig {
         StreamMessageListenerContainer<String, MapRecord<String, String, String>> contenedor =
                 StreamMessageListenerContainer.create(conexion, opciones);
 
-        // sin confirmacion automatica: se confirma despues de guardar
-        contenedor.receive(
-                Consumer.from(ColaNotificacionesService.GRUPO, cola.consumidor()),
-                StreamOffset.create(ColaNotificacionesService.COLA, ReadOffset.lastConsumed()),
-                new Oyente(cola));
+        // sin confirmacion automatica: se confirma despues de guardar.
+        // un error leyendo (redis se reinicio, el equipo se suspendio) no apaga el consumidor: sigue leyendo
+        StreamMessageListenerContainer.StreamReadRequest<String> lectura = StreamMessageListenerContainer.StreamReadRequest
+                .builder(StreamOffset.create(ColaNotificacionesService.COLA, ReadOffset.lastConsumed()))
+                .consumer(Consumer.from(ColaNotificacionesService.GRUPO, cola.consumidor()))
+                .autoAcknowledge(false)
+                .cancelOnError(new SeguirSiFalla())
+                .errorHandler(new AvisarError())
+                .build();
+        contenedor.register(lectura, new Oyente(cola));
 
         return contenedor;
     }
@@ -57,9 +64,19 @@ public class ColaNotificacionesConfig {
         try {
             redis.opsForStream().createGroup(ColaNotificacionesService.COLA, ReadOffset.from("0"), ColaNotificacionesService.GRUPO);
         } catch (DataAccessException e) {
-            if (e.getMessage() == null || !e.getMessage().contains("BUSYGROUP")) {
-                LOG.warn("No se pudo crear el grupo de la cola de notificaciones: {}", e.getMessage());
+            String causa = NestedExceptionUtils.getMostSpecificCause(e).getMessage();
+            if (causa == null || !causa.contains("BUSYGROUP")) {
+                LOG.warn("No se pudo crear el grupo de la cola de notificaciones: {}", causa);
             }
+        }
+    }
+
+    // ante cualquier error la lectura no se cancela
+    private static class SeguirSiFalla implements Predicate<Throwable> {
+
+        @Override
+        public boolean test(Throwable error) {
+            return false;
         }
     }
 

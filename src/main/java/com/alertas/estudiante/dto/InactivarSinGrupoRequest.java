@@ -4,6 +4,6 @@ import jakarta.validation.constraints.NotNull;
 
 public record InactivarSinGrupoRequest(
 
-        @NotNull(message = "Falta el anio lectivo")
+        @NotNull(message = "Falta el año lectivo")
         Long anioId) {
 }

@@ -101,6 +101,33 @@ public class PersonalServiceImpl implements PersonalService {
     }
 
     @Override
+    @Transactional
+    public AdministradorResponse actualizarAdministrador(String codigo, AdministradorRequest request) {
+
+        TenantSupport.requireTenant(em);
+
+        Personal personal = obtenerAdministrador(codigo);
+        String documento = request.nroDoc().trim();
+
+        if (!documento.equals(personal.getNroDoc())) {
+            if (repository.existsByNroDocAndIdNot(documento, personal.getId())) {
+                throw ApiException.conflicto("Ya existe una persona con el documento " + documento);
+            }
+            usuarioService.cambiarDocumento(personal.getUsuario().getId(), documento);
+        }
+
+        personal.setTipoDoc(request.tipoDoc());
+        personal.setNroDoc(documento);
+        personal.setNombres(request.nombres().trim());
+        personal.setApellidos(request.apellidos().trim());
+        personal.setCorreo(vacioANull(request.correo()));
+        personal.setCelular(vacioANull(request.celular()));
+
+        repository.saveAndFlush(personal);
+        return AdministradorResponse.desde(personal);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Long usuarioIdDeAdministrador(String codigo) {
         return obtenerAdministrador(codigo).getUsuario().getId();

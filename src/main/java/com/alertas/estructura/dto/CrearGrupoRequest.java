@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 
 public record CrearGrupoRequest(
 
-        @NotNull(message = "Falta el anio lectivo")
+        @NotNull(message = "Falta el año lectivo")
         Long anioId,
 
         @NotNull(message = "Falta el grado")

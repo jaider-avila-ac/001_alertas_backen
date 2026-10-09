@@ -442,7 +442,7 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
         }
 
         bitacoraService.registrar("IMPORTAR_ESTUDIANTES", "estudiante", null,
-                creados + " creados, " + actualizados + " actualizados, anio " + anio.anio());
+                creados + " creados, " + actualizados + " actualizados, año " + anio.anio());
 
         return new ResultadoImportacionResponse(creados, actualizados, gruposCreados);
     }
@@ -570,7 +570,7 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
         AnioLectivoResponse activo = estructuraService.anioActivo();
 
         if (activo == null) {
-            throw ApiException.invalido("No hay anio lectivo activo. Crea o activa uno en Grados y grupos");
+            throw ApiException.invalido("No hay año lectivo activo. Crea o activa uno en Grados y grupos");
         }
 
         return activo;

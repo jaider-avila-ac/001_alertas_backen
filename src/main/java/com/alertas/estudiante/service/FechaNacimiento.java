@@ -26,7 +26,7 @@ public final class FechaNacimiento {
         int edad = Period.between(fecha, hoy).getYears();
 
         if (edad < EDAD_MINIMA || edad > EDAD_MAXIMA) {
-            return "La fecha de nacimiento no es valida: el estudiante tendria " + edad + " anios (debe tener entre "
+            return "La fecha de nacimiento no es valida: el estudiante tendria " + edad + " años (debe tener entre "
                     + EDAD_MINIMA + " y " + EDAD_MAXIMA + ")";
         }
 
