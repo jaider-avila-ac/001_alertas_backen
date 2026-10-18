@@ -1,5 +1,6 @@
 package com.alertas.matricula.dto;
 
+import com.alertas.shared.validacion.ConLetras;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -10,5 +11,6 @@ public record UbicarRequest(
         Long grupoId,
 
         @Size(max = 300, message = "El motivo es muy largo")
+        @ConLetras(message = "El motivo debe tener letras")
         String motivo) {
 }

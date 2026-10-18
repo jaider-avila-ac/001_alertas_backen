@@ -1,5 +1,6 @@
 package com.alertas.alerta.dto;
 
+import com.alertas.shared.validacion.ConLetras;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -22,12 +23,14 @@ public record CrearAlertaRequest(
 
         @NotBlank(message = "Describe lo que paso")
         @Size(min = 10, max = 5000, message = "La descripcion debe tener entre 10 y 5000 caracteres")
+        @ConLetras(message = "La descripcion debe tener letras")
         String descripcion,
 
         @PastOrPresent(message = "La fecha del hecho no puede ser futura")
         LocalDate fechaHecho,
 
         @Size(max = 150, message = "El lugar es muy largo")
+        @ConLetras(message = "El lugar debe tener letras")
         String lugar,
 
         boolean peligroInmediato) {

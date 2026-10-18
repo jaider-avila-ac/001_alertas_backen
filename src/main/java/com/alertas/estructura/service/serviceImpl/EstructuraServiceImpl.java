@@ -13,6 +13,7 @@ import com.alertas.estructura.repository.GrupoRepository;
 import com.alertas.estructura.service.EstructuraService;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.exception.ApiException;
+import com.alertas.shared.validacion.Formato;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -288,7 +289,7 @@ public class EstructuraServiceImpl implements EstructuraService {
 
         AnioLectivo anio = obtenerAnio(anioId);
         Grado grado = obtenerGrado(gradoId);
-        String nombreLimpio = nombre.trim();
+        String nombreLimpio = Formato.espacios(nombre).toUpperCase();
 
         validarAnioEditable(anio);
 
@@ -317,7 +318,7 @@ public class EstructuraServiceImpl implements EstructuraService {
         TenantSupport.requireTenant(em);
 
         Grupo grupo = obtenerGrupo(grupoId);
-        String nombreLimpio = nombre.trim();
+        String nombreLimpio = Formato.espacios(nombre).toUpperCase();
 
         validarAnioEditable(grupo.getAnio());
 

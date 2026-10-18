@@ -107,7 +107,7 @@ class ImportacionEstudiantesTest extends IntegracionTest {
                 new String[] {"XX", "8002", "Luis", "Gil", "", "", "", "6", "A", "", "", ""},
                 new String[] {"TI", "8003", "Pedro", "", "", "", "", "Prejardin", "A", "", "", ""},
                 new String[] {"TI", "8001", "Repetido", "Rios", "", "", "", "6", "B", "", "", ""},
-                new String[] {"TI", "82820000", "Es el admin", "X", "", "", "", "6", "A", "", "", ""});
+                new String[] {"TI", "82820000", "Es el admin", "Gil", "", "", "", "6", "A", "", "", ""});
 
         vistaPrevia(colegio, archivo)
                 .andExpect(status().isOk())

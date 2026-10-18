@@ -18,6 +18,7 @@ import com.alertas.shared.dto.NombrePersona;
 import com.alertas.personal.service.PersonalService;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.exception.ApiException;
+import com.alertas.shared.validacion.Formato;
 import com.alertas.usuario.model.Usuario;
 import com.alertas.usuario.service.UsuarioService;
 import jakarta.persistence.EntityManager;
@@ -68,7 +69,8 @@ public class AuthServiceImpl implements AuthService {
     public LoginResponse login(LoginRequest request, String ip, String userAgent) {
 
         Long institucionId = TenantSupport.requireTenant(em);
-        String documento = request.usuario().trim();
+        // si lo escriben con puntos o espacios (1.067.000.111) igual entra
+        String documento = Formato.documento(request.usuario());
 
         // el mismo documento puede existir en otro colegio, por eso la clave lleva la institucion
         String claveUsuario = "u:" + institucionId + ":" + documento;

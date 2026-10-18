@@ -6,22 +6,12 @@ import java.util.List;
 // categorias de alerta de la institucion del contexto. son pocas, no se pagina
 public interface CategoriaService {
 
-    // las categorias con las que arranca una institucion nueva
+    // las de una institucion nueva. son fijas: las mismas para todas y siempre activas
     void crearPredeterminadas();
 
-    // soloActivas: lo que ve el docente al crear una alerta
-    List<CategoriaResponse> listar(boolean soloActivas);
+    // con el total de alertas de cada una
+    List<CategoriaResponse> listar();
 
-    CategoriaResponse crear(String nombre);
-
-    CategoriaResponse renombrar(Long id, String nombre);
-
-    // no se puede apagar la ultima activa
-    CategoriaResponse cambiarEstado(Long id, boolean activa);
-
-    // solo si no tiene alertas; si tiene, se desactiva
-    void borrar(Long id);
-
-    // para alertas: falla si no existe o esta desactivada
+    // para alertas: falla si no existe o es una vieja que ya no se usa
     CategoriaResponse buscarActiva(Long id);
 }

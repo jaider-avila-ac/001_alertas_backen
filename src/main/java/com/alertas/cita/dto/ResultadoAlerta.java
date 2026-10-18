@@ -1,5 +1,6 @@
 package com.alertas.cita.dto;
 
+import com.alertas.shared.validacion.ConLetras;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -16,5 +17,6 @@ public record ResultadoAlerta(
 
         @NotBlank(message = "Escribe la observacion de cada alerta")
         @Size(max = 5000, message = "La observacion es muy larga")
+        @ConLetras(message = "La observacion debe tener letras")
         String observacion) {
 }

@@ -16,6 +16,8 @@ import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.ErrorFila;
 import com.alertas.shared.excel.ArchivoExcel;
 import com.alertas.shared.exception.ApiException;
+import com.alertas.shared.validacion.Formato;
+import com.alertas.shared.validacion.Validaciones;
 import com.alertas.usuario.model.Usuario;
 import com.alertas.usuario.service.UsuarioService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -30,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Pattern;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -45,9 +46,6 @@ public class ImportacionPersonalServiceImpl implements ImportacionPersonalServic
     private static final Duration DURACION_VISTA_PREVIA = Duration.ofMinutes(15);
 
     private static final Set<String> TIPOS_DOC = Set.of("RC", "TI", "CC", "CE", "PPT");
-    private static final Pattern DOCUMENTO = Pattern.compile("[A-Za-z0-9]{3,20}");
-    private static final Pattern CELULAR = Pattern.compile("3[0-9]{9}");
-    private static final Pattern CORREO = Pattern.compile("[^@\\s]+@[^@\\s]+\\.[^@\\s]+");
 
     // formas en que la gente escribe el rol
     private static final Map<String, String> ROLES = Map.of(
@@ -180,24 +178,30 @@ public class ImportacionPersonalServiceImpl implements ImportacionPersonalServic
     private FilaPersonalImportada validarFila(int numero, Map<String, String> datos, List<String> problemas) {
 
         String tipoDoc = datos.getOrDefault(ExcelPersonal.TIPO_DOC, "").toUpperCase();
-        String nroDoc = datos.getOrDefault(ExcelPersonal.NUMERO_DOCUMENTO, "").replace(".", "").replace(" ", "");
+        String nroDoc = sinNull(Formato.documento(datos.get(ExcelPersonal.NUMERO_DOCUMENTO)));
         String nombres = datos.getOrDefault(ExcelPersonal.NOMBRES, "");
         String apellidos = datos.getOrDefault(ExcelPersonal.APELLIDOS, "");
         String rolTexto = datos.getOrDefault(ExcelPersonal.ROL, "").toUpperCase().replace(" ", "");
         String correo = datos.getOrDefault(ExcelPersonal.CORREO, "");
-        String celular = datos.getOrDefault(ExcelPersonal.CELULAR, "").replace(" ", "");
+        String celular = sinNull(Formato.telefono(datos.get(ExcelPersonal.CELULAR)));
 
         if (!TIPOS_DOC.contains(tipoDoc)) {
             problemas.add("tipo de documento no valido (CC, CE, PPT, TI o RC)");
+        } else {
+            String problemaDocumento = Validaciones.problemaDocumento(tipoDoc, nroDoc);
+            if (problemaDocumento != null) {
+                problemas.add(problemaDocumento.toLowerCase());
+            }
         }
-        if (!DOCUMENTO.matcher(nroDoc).matches()) {
-            problemas.add("numero de documento no valido");
-        }
-        if (nombres.isEmpty() || nombres.length() > 80) {
+        if (nombres.isEmpty()) {
             problemas.add("faltan los nombres");
+        } else if (nombres.length() > 80 || !Validaciones.esNombre(nombres)) {
+            problemas.add("los nombres solo llevan letras (maximo 80)");
         }
-        if (apellidos.isEmpty() || apellidos.length() > 80) {
+        if (apellidos.isEmpty()) {
             problemas.add("faltan los apellidos");
+        } else if (apellidos.length() > 80 || !Validaciones.esNombre(apellidos)) {
+            problemas.add("los apellidos solo llevan letras (maximo 80)");
         }
 
         String rol = ROLES.get(rolTexto);
@@ -205,10 +209,10 @@ public class ImportacionPersonalServiceImpl implements ImportacionPersonalServic
             problemas.add("rol no valido (DOCENTE o PSICORIENTADOR)");
         }
 
-        if (!correo.isEmpty() && (correo.length() > 120 || !CORREO.matcher(correo).matches())) {
+        if (!correo.isEmpty() && !Validaciones.esCorreo(correo)) {
             problemas.add("correo no valido");
         }
-        if (!celular.isEmpty() && !CELULAR.matcher(celular).matches()) {
+        if (!celular.isEmpty() && !Validaciones.esCelular(celular)) {
             problemas.add("celular no valido (10 digitos, empieza por 3)");
         }
 
@@ -217,7 +221,14 @@ public class ImportacionPersonalServiceImpl implements ImportacionPersonalServic
         }
 
         return new FilaPersonalImportada(
-                numero, tipoDoc, nroDoc, nombres, apellidos, rol, vacioANull(correo), vacioANull(celular));
+                numero,
+                tipoDoc,
+                nroDoc,
+                Formato.nombrePropio(nombres),
+                Formato.nombrePropio(apellidos),
+                rol,
+                Formato.correo(correo),
+                vacioANull(celular));
     }
 
     // ---------------------------------------------------------------- confirmar
@@ -381,5 +392,14 @@ public class ImportacionPersonalServiceImpl implements ImportacionPersonalServic
         }
 
         return texto.trim();
+    }
+
+    private String sinNull(String texto) {
+
+        if (texto == null) {
+            return "";
+        }
+
+        return texto;
     }
 }

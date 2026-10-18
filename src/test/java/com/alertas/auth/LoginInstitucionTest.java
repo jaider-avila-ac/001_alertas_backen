@@ -116,7 +116,7 @@ class LoginInstitucionTest extends IntegracionTest {
                 .andExpect(status().isBadRequest());
 
         String nuevo = tokenDe(mvc.perform(put("/api/v1/auth/contrasena").header("Authorization", token)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"actual\":\"9000\",\"nueva\":\"mi-clave-nueva\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"actual\":\"9000\",\"nueva\":\"mi-clave-nueva1\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.perfil.debeCambiarContrasena").value(false)));
 
@@ -125,7 +125,7 @@ class LoginInstitucionTest extends IntegracionTest {
         mvc.perform(get("/api/v1/auth/yo").header("Authorization", token)).andExpect(status().isUnauthorized());
 
         login("login-b", "9000", "9000").andExpect(status().isUnauthorized());
-        login("login-b", "9000", "mi-clave-nueva").andExpect(status().isOk());
+        login("login-b", "9000", "mi-clave-nueva1").andExpect(status().isOk());
     }
 
     @Test
@@ -234,11 +234,11 @@ class LoginInstitucionTest extends IntegracionTest {
 
         mvc.perform(put("/api/v1/superadmin/instituciones/login-asignar/administradores/codigoAdmin1/contrasena")
                         .header("Authorization", sa)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"nueva\":\"clave-del-admin\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"nueva\":\"clave-del-admin1\"}"))
                 .andExpect(status().isOk());
 
         login("login-asignar", "880", "880").andExpect(status().isUnauthorized());
-        login("login-asignar", "880", "clave-del-admin")
+        login("login-asignar", "880", "clave-del-admin1")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.perfil.nombres").value("Admin"))
                 .andExpect(jsonPath("$.perfil.debeCambiarContrasena").value(false));

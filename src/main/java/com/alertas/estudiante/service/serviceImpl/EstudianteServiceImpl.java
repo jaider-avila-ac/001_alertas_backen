@@ -27,6 +27,7 @@ import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.NombrePersona;
 import com.alertas.shared.dto.PageResponse;
 import com.alertas.shared.exception.ApiException;
+import com.alertas.shared.validacion.Formato;
 import com.alertas.shared.interceptor.TenantContext;
 import com.alertas.usuario.model.Usuario;
 import com.alertas.usuario.service.UsuarioService;
@@ -125,7 +126,7 @@ public class EstudianteServiceImpl implements EstudianteService {
         GrupoResponse grupo = estructuraService.buscarGrupo(request.grupoId());
         estructuraService.buscarAnioEditable(grupo.anioId());
 
-        String documento = request.nroDoc().trim();
+        String documento = Formato.documento(request.nroDoc());
 
         if (repository.existsByNroDoc(documento)) {
             throw ApiException.conflicto("Ya existe un estudiante con el documento " + documento);
@@ -154,7 +155,7 @@ public class EstudianteServiceImpl implements EstudianteService {
         TenantSupport.requireTenant(em);
 
         Estudiante estudiante = obtener(codigo);
-        String documento = request.nroDoc().trim();
+        String documento = Formato.documento(request.nroDoc());
 
         if (!documento.equals(estudiante.getNroDoc())) {
             if (repository.existsByNroDocAndIdNot(documento, estudiante.getId())) {
@@ -234,10 +235,10 @@ public class EstudianteServiceImpl implements EstudianteService {
             familiar.setInstitucionId(institucionId);
             familiar.setEstudiante(actual);
             familiar.setPosicion(posicion);
-            familiar.setNombres(datos.nombres().trim());
-            familiar.setApellidos(vacioANull(datos.apellidos()));
+            familiar.setNombres(Formato.nombrePropio(datos.nombres()));
+            familiar.setApellidos(Formato.nombrePropio(datos.apellidos()));
             familiar.setParentesco(datos.parentesco());
-            familiar.setCelular(vacioANull(datos.celular()));
+            familiar.setCelular(Formato.telefono(datos.celular()));
             familiar.setRecibeSms(datos.recibeSms());
             familiarRepository.save(familiar);
             posicion++;
@@ -520,18 +521,18 @@ public class EstudianteServiceImpl implements EstudianteService {
         }
 
         estudiante.setTipoDoc(request.tipoDoc());
-        estudiante.setNroDoc(request.nroDoc().trim());
-        estudiante.setNombres(request.nombres().trim());
-        estudiante.setApellidos(request.apellidos().trim());
+        estudiante.setNroDoc(Formato.documento(request.nroDoc()));
+        estudiante.setNombres(Formato.nombrePropio(request.nombres()));
+        estudiante.setApellidos(Formato.nombrePropio(request.apellidos()));
         estudiante.setGenero(vacioANull(request.genero()));
         estudiante.setFechaNacimiento(request.fechaNacimiento());
-        estudiante.setCelular(vacioANull(request.celular()));
-        estudiante.setCorreo(vacioANull(request.correo()));
-        estudiante.setDireccion(vacioANull(request.direccion()));
-        estudiante.setBarrio(vacioANull(request.barrio()));
-        estudiante.setEps(vacioANull(request.eps()));
+        estudiante.setCelular(Formato.telefono(request.celular()));
+        estudiante.setCorreo(Formato.correo(request.correo()));
+        estudiante.setDireccion(Formato.espacios(request.direccion()));
+        estudiante.setBarrio(Formato.nombrePropio(request.barrio()));
+        estudiante.setEps(Formato.espacios(request.eps()));
         estudiante.setRh(vacioANull(request.rh()));
-        estudiante.setCondicionesSalud(vacioANull(request.condicionesSalud()));
+        estudiante.setCondicionesSalud(Formato.texto(request.condicionesSalud()));
     }
 
     private EstudianteDetalleResponse armarDetalle(Estudiante estudiante) {

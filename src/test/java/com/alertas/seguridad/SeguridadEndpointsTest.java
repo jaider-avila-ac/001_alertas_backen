@@ -341,7 +341,7 @@ class SeguridadEndpointsTest extends IntegracionTest {
         datos.put("tipoDoc", "CC");
         datos.put("nroDoc", documento);
         datos.put("nombres", "Persona");
-        datos.put("apellidos", documento);
+        datos.put("apellidos", "Prueba");
         datos.put("rol", rol.name());
         enviar("/api/v1/personal", colegio.admin(), datos);
 

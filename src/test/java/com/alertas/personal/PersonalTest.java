@@ -152,7 +152,7 @@ class PersonalTest extends IntegracionTest {
         // entra y pone su clave
         String primera = login(colegio.slug(), "7001", "7001");
         MvcResult cambio = mvc.perform(put("/api/v1/auth/contrasena").header("Authorization", primera)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"actual\":\"7001\",\"nueva\":\"clave-de-lina\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"actual\":\"7001\",\"nueva\":\"clave-de-lina1\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
         String sesion = "Bearer " + leer(cambio).get("token").asText();
@@ -260,8 +260,8 @@ class PersonalTest extends IntegracionTest {
         byte[] archivo = excel(
                 new String[] {"CC", "9001", "Ana", "Rios", "DOCENTE", "", ""},
                 new String[] {"CC", "9002", "Luis", "Gil", "RECTOR", "", ""},
-                new String[] {"CC", "75750000", "Es el admin", "X", "DOCENTE", "", ""},
-                new String[] {"CC", "9990", "Es estudiante", "X", "DOCENTE", "", ""},
+                new String[] {"CC", "75750000", "Es el admin", "Gil", "DOCENTE", "", ""},
+                new String[] {"CC", "9990", "Es estudiante", "Gil", "DOCENTE", "", ""},
                 new String[] {"CC", "9001", "Repetida", "Rios", "DOCENTE", "", ""});
 
         vistaPrevia(colegio, archivo)

@@ -1,11 +1,16 @@
 package com.alertas.personal.dto;
 
-import jakarta.validation.constraints.Email;
+import com.alertas.shared.validacion.Celular;
+import com.alertas.shared.validacion.ConDocumento;
+import com.alertas.shared.validacion.Correo;
+import com.alertas.shared.validacion.DocumentoValido;
+import com.alertas.shared.validacion.Nombre;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 // docente o psicorientador. los administradores se crean desde el superadmin
+@DocumentoValido
 public record PersonalRequest(
 
         @NotBlank(message = "El tipo de documento es obligatorio")
@@ -13,25 +18,26 @@ public record PersonalRequest(
         String tipoDoc,
 
         @NotBlank(message = "El numero de documento es obligatorio")
-        @Pattern(regexp = "[A-Za-z0-9]{3,20}", message = "El documento solo lleva letras y numeros, de 3 a 20")
         String nroDoc,
 
         @NotBlank(message = "Los nombres son obligatorios")
         @Size(max = 80, message = "Los nombres son muy largos")
+        @Nombre(message = "Los nombres solo llevan letras")
         String nombres,
 
         @NotBlank(message = "Los apellidos son obligatorios")
         @Size(max = 80, message = "Los apellidos son muy largos")
+        @Nombre(message = "Los apellidos solo llevan letras")
         String apellidos,
 
-        @Email(message = "El correo no es valido")
         @Size(max = 120, message = "El correo es muy largo")
+        @Correo
         String correo,
 
-        @Pattern(regexp = "3[0-9]{9}", message = "El celular debe tener 10 digitos y empezar por 3")
+        @Celular
         String celular,
 
         @NotBlank(message = "El rol es obligatorio")
         @Pattern(regexp = "DOCENTE|PSICORIENTADOR", message = "El rol debe ser docente o psicorientador")
-        String rol) {
+        String rol) implements ConDocumento {
 }

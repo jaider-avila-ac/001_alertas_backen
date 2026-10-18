@@ -23,6 +23,8 @@ import com.alertas.matricula.service.MatriculaService;
 import com.alertas.shared.CodigoAleatorio;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.exception.ApiException;
+import com.alertas.shared.validacion.Formato;
+import com.alertas.shared.validacion.Validaciones;
 import com.alertas.usuario.model.Usuario;
 import com.alertas.usuario.service.UsuarioService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -60,9 +62,7 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
     private static final Set<String> TIPOS_DOC = Set.of("RC", "TI", "CC", "CE", "PPT");
     private static final Set<String> PARENTESCOS =
             Set.of("MADRE", "PADRE", "ACUDIENTE", "ABUELO", "HERMANO", "TIO", "OTRO");
-    private static final Pattern DOCUMENTO = Pattern.compile("[A-Za-z0-9]{3,20}");
-    private static final Pattern CELULAR = Pattern.compile("3[0-9]{9}");
-    private static final Pattern CORREO = Pattern.compile("[^@\\s]+@[^@\\s]+\\.[^@\\s]+");
+    private static final Pattern GRUPO = Pattern.compile("[A-Za-z0-9]+([ -][A-Za-z0-9]+)*");
     private static final Set<String> RH = Set.of("O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-");
 
     // nombres de grado que la gente escribe distinto al catalogo
@@ -215,17 +215,17 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
             int numero, Map<String, String> datos, Map<String, GradoResponse> grados, List<String> problemas) {
 
         String tipoDoc = datos.getOrDefault(ExcelEstudiantes.TIPO_DOC, "").toUpperCase();
-        String nroDoc = datos.getOrDefault(ExcelEstudiantes.NUMERO_DOCUMENTO, "").replace(".", "").replace(" ", "");
+        String nroDoc = sinNull(Formato.documento(datos.get(ExcelEstudiantes.NUMERO_DOCUMENTO)));
         String nombres = datos.getOrDefault(ExcelEstudiantes.NOMBRES, "");
         String apellidos = datos.getOrDefault(ExcelEstudiantes.APELLIDOS, "");
         String genero = datos.getOrDefault(ExcelEstudiantes.GENERO, "").toUpperCase();
         String fechaTexto = datos.getOrDefault(ExcelEstudiantes.FECHA_NACIMIENTO, "");
-        String celular = datos.getOrDefault(ExcelEstudiantes.CELULAR, "").replace(" ", "");
+        String celular = sinNull(Formato.telefono(datos.get(ExcelEstudiantes.CELULAR)));
         String gradoTexto = datos.getOrDefault(ExcelEstudiantes.GRADO, "");
         String grupo = datos.getOrDefault(ExcelEstudiantes.GRUPO, "");
         String famNombre = datos.getOrDefault(ExcelEstudiantes.FAMILIAR_NOMBRE, "");
         String famParentesco = datos.getOrDefault(ExcelEstudiantes.FAMILIAR_PARENTESCO, "").toUpperCase();
-        String famCelular = datos.getOrDefault(ExcelEstudiantes.FAMILIAR_CELULAR, "").replace(" ", "");
+        String famCelular = sinNull(Formato.telefono(datos.get(ExcelEstudiantes.FAMILIAR_CELULAR)));
         String correo = datos.getOrDefault(ExcelEstudiantes.CORREO, "");
         String direccion = datos.getOrDefault(ExcelEstudiantes.DIRECCION, "");
         String barrio = datos.getOrDefault(ExcelEstudiantes.BARRIO, "");
@@ -235,15 +235,21 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
 
         if (!TIPOS_DOC.contains(tipoDoc)) {
             problemas.add("tipo de documento no valido (RC, TI, CC, CE o PPT)");
+        } else {
+            String problemaDocumento = Validaciones.problemaDocumento(tipoDoc, nroDoc);
+            if (problemaDocumento != null) {
+                problemas.add(problemaDocumento.toLowerCase());
+            }
         }
-        if (!DOCUMENTO.matcher(nroDoc).matches()) {
-            problemas.add("numero de documento no valido");
-        }
-        if (nombres.isEmpty() || nombres.length() > 80) {
+        if (nombres.isEmpty()) {
             problemas.add("faltan los nombres");
+        } else if (nombres.length() > 80 || !Validaciones.esNombre(nombres)) {
+            problemas.add("los nombres solo llevan letras (maximo 80)");
         }
-        if (apellidos.isEmpty() || apellidos.length() > 80) {
+        if (apellidos.isEmpty()) {
             problemas.add("faltan los apellidos");
+        } else if (apellidos.length() > 80 || !Validaciones.esNombre(apellidos)) {
+            problemas.add("los apellidos solo llevan letras (maximo 80)");
         }
         if (!genero.isEmpty() && !Set.of("F", "M", "O").contains(genero)) {
             problemas.add("genero no valido (F, M u O)");
@@ -262,7 +268,7 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
             }
         }
 
-        if (!celular.isEmpty() && !CELULAR.matcher(celular).matches()) {
+        if (!celular.isEmpty() && !Validaciones.esCelular(celular)) {
             problemas.add("celular no valido (10 digitos, empieza por 3)");
         }
 
@@ -273,30 +279,35 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
             problemas.add("el grado " + grado.nombre() + " no lo ofrece la institucion (activalo en Grados y grupos)");
         }
 
-        if (grupo.isEmpty() || grupo.length() > 20) {
+        if (grupo.isEmpty()) {
             problemas.add("falta el grupo");
+        } else if (grupo.length() > 20 || !GRUPO.matcher(grupo).matches()) {
+            problemas.add("el grupo solo lleva letras y numeros, ej: A, 01 o 6A");
         }
 
         if (!famNombre.isEmpty()) {
+            if (famNombre.length() > 80 || !Validaciones.esNombre(famNombre)) {
+                problemas.add("el nombre del familiar solo lleva letras (maximo 80)");
+            }
             if (!PARENTESCOS.contains(famParentesco)) {
                 problemas.add("parentesco del familiar no valido");
             }
-            if (!famCelular.isEmpty() && !CELULAR.matcher(famCelular).matches()) {
+            if (!famCelular.isEmpty() && !Validaciones.esCelular(famCelular)) {
                 problemas.add("celular del familiar no valido");
             }
         }
 
-        if (!correo.isEmpty() && (correo.length() > 120 || !CORREO.matcher(correo).matches())) {
+        if (!correo.isEmpty() && !Validaciones.esCorreo(correo)) {
             problemas.add("correo no valido");
         }
-        if (direccion.length() > 150) {
-            problemas.add("la direccion es muy larga");
+        if (!direccion.isEmpty() && (direccion.length() > 150 || !Validaciones.esDireccion(direccion))) {
+            problemas.add("la direccion no es valida (maximo 150)");
         }
-        if (barrio.length() > 80) {
-            problemas.add("el barrio es muy largo");
+        if (!barrio.isEmpty() && (barrio.length() > 80 || !Validaciones.esTextoBasico(barrio))) {
+            problemas.add("el barrio no es valido (maximo 80)");
         }
-        if (eps.length() > 80) {
-            problemas.add("la EPS es muy larga");
+        if (!eps.isEmpty() && (eps.length() > 80 || !Validaciones.esTextoBasico(eps))) {
+            problemas.add("la EPS no es valida (maximo 80)");
         }
         if (!rh.isEmpty() && !RH.contains(rh)) {
             problemas.add("RH no valido (O+, O-, A+, A-, B+, B-, AB+ o AB-)");
@@ -313,21 +324,21 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
                 numero,
                 tipoDoc,
                 nroDoc,
-                nombres,
-                apellidos,
+                Formato.nombrePropio(nombres),
+                Formato.nombrePropio(apellidos),
                 vacioANull(genero),
                 fecha,
                 vacioANull(celular),
                 grado.id(),
                 grado.nombre(),
                 grupo,
-                vacioANull(famNombre),
+                Formato.nombrePropio(famNombre),
                 vacioANull(famParentesco),
                 vacioANull(famCelular),
-                vacioANull(correo),
-                vacioANull(direccion),
-                vacioANull(barrio),
-                vacioANull(eps),
+                Formato.correo(correo),
+                Formato.espacios(direccion),
+                Formato.nombrePropio(barrio),
+                Formato.espacios(eps),
                 vacioANull(rh),
                 vacioANull(salud));
     }
@@ -674,5 +685,14 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
         }
 
         return texto.trim();
+    }
+
+    private String sinNull(String texto) {
+
+        if (texto == null) {
+            return "";
+        }
+
+        return texto;
     }
 }

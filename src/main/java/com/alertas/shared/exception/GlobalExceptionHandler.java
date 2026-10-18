@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
@@ -41,11 +42,18 @@ public class GlobalExceptionHandler {
         // se muestra el primer error, el front valida lo demas
         List<FieldError> errores = e.getBindingResult().getFieldErrors();
 
-        if (errores.isEmpty()) {
-            return responder(HttpStatus.BAD_REQUEST, DATOS_INVALIDOS);
+        if (!errores.isEmpty()) {
+            return responder(HttpStatus.BAD_REQUEST, errores.get(0).getDefaultMessage());
         }
 
-        return responder(HttpStatus.BAD_REQUEST, errores.get(0).getDefaultMessage());
+        // las reglas que van sobre todo el objeto
+        List<ObjectError> generales = e.getBindingResult().getGlobalErrors();
+
+        if (!generales.isEmpty()) {
+            return responder(HttpStatus.BAD_REQUEST, generales.get(0).getDefaultMessage());
+        }
+
+        return responder(HttpStatus.BAD_REQUEST, DATOS_INVALIDOS);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)

@@ -132,7 +132,7 @@ class InstitucionSuperadminTest extends IntegracionTest {
         assertThat(grados).isEqualTo(14);
         assertThat(gradosActivos).isEqualTo(12);
         assertThat(anio).isEqualTo(LocalDate.now().getYear());
-        assertThat(categorias).isEqualTo(6);
+        assertThat(categorias).isEqualTo(10);
 
         // usuario = documento y contrasena = documento, guardada con bcrypt
         String hash = OWNER.queryForObject(

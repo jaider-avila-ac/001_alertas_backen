@@ -82,7 +82,7 @@ class EstadisticaTest extends IntegracionTest {
     private String crearEstudiante(Colegio colegio, Long grupo, String documento, String genero, int edad) throws Exception {
 
         String nacimiento = LocalDate.now().minusYears(edad).minusDays(20).toString();
-        String body = "{\"tipoDoc\":\"TI\",\"nroDoc\":\"" + documento + "\",\"nombres\":\"Est" + documento + "\","
+        String body = "{\"tipoDoc\":\"TI\",\"nroDoc\":\"" + documento + "\",\"nombres\":\"Estudiante\","
                 + "\"apellidos\":\"Prueba\",\"genero\":\"" + genero + "\",\"fechaNacimiento\":\"" + nacimiento + "\","
                 + "\"grupoId\":" + grupo + "}";
         return leer(mvc.perform(post("/api/v1/estudiantes").header("Authorization", colegio.admin())

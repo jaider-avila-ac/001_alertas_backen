@@ -18,6 +18,7 @@ import com.alertas.personal.service.PersonalService;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.PageResponse;
 import com.alertas.shared.exception.ApiException;
+import com.alertas.shared.validacion.Formato;
 import com.alertas.usuario.service.UsuarioService;
 import jakarta.persistence.EntityManager;
 import java.time.Duration;
@@ -492,14 +493,14 @@ public class InstitucionServiceImpl implements InstitucionService {
 
     private void copiarDatos(InstitucionDatosRequest datos, Institucion institucion) {
 
-        institucion.setNombre(datos.nombre().trim());
+        institucion.setNombre(Formato.espacios(datos.nombre()));
         institucion.setSlug(datos.slug());
-        institucion.setCodigoDane(vacioANull(datos.codigoDane()));
-        institucion.setMunicipio(vacioANull(datos.municipio()));
-        institucion.setDepartamento(vacioANull(datos.departamento()));
-        institucion.setDireccion(vacioANull(datos.direccion()));
-        institucion.setTelefono(vacioANull(datos.telefono()));
-        institucion.setCorreo(vacioANull(datos.correo()));
+        institucion.setCodigoDane(Formato.espacios(datos.codigoDane()));
+        institucion.setMunicipio(Formato.nombrePropio(datos.municipio()));
+        institucion.setDepartamento(Formato.nombrePropio(datos.departamento()));
+        institucion.setDireccion(Formato.espacios(datos.direccion()));
+        institucion.setTelefono(Formato.telefono(datos.telefono()));
+        institucion.setCorreo(Formato.correo(datos.correo()));
     }
 
     // se borra despues del commit. si se borra antes, otra solicitud alcanza a leer el dato viejo
@@ -529,14 +530,5 @@ public class InstitucionServiceImpl implements InstitucionService {
         }
 
         return tamanio;
-    }
-
-    private String vacioANull(String texto) {
-
-        if (texto == null || texto.isBlank()) {
-            return null;
-        }
-
-        return texto.trim();
     }
 }

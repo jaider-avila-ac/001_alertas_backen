@@ -89,7 +89,7 @@ class MatriculaTest extends IntegracionTest {
         Map<String, Object> datos = new HashMap<>();
         datos.put("tipoDoc", "TI");
         datos.put("nroDoc", documento);
-        datos.put("nombres", "Estudiante " + documento);
+        datos.put("nombres", "Estudiante");
         datos.put("apellidos", "Prueba");
         datos.put("grupoId", grupoId);
         return leer(crearEstudiante(colegio, datos).andExpect(status().isCreated()).andReturn()).get("codigo").asText();

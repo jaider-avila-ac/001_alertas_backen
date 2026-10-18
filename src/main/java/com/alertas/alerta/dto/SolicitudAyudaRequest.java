@@ -1,5 +1,6 @@
 package com.alertas.alerta.dto;
 
+import com.alertas.shared.validacion.ConLetras;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -17,9 +18,11 @@ public record SolicitudAyudaRequest(
 
         @NotBlank(message = "Cuentanos que pasa")
         @Size(min = 10, max = 5000, message = "Escribe entre 10 y 5000 caracteres")
+        @ConLetras(message = "Cuentanos con palabras que pasa")
         String descripcion,
 
         @Size(max = 150, message = "El horario es muy largo")
+        @ConLetras(message = "El horario debe tener letras")
         String horarioSeguro,
 
         @Pattern(regexp = "PRESENCIAL|VIRTUAL", message = "La modalidad no es valida")

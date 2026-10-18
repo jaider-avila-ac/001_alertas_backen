@@ -86,7 +86,7 @@ class EstadisticaGlobalTest extends IntegracionTest {
 
         Long salud = null;
         for (JsonNode categoria : leer(mvc.perform(get("/api/v1/categorias").header("Authorization", colegio.admin())).andReturn())) {
-            if (categoria.get("nombre").asText().equals("Salud mental")) {
+            if (categoria.get("nombre").asText().equals("Salud mental y emocional")) {
                 salud = categoria.get("id").asLong();
             }
         }
@@ -147,7 +147,7 @@ class EstadisticaGlobalTest extends IntegracionTest {
         assertThat(total(delA.get("usuariosPorRol"), "PSICORIENTADOR")).isZero();
         assertThat(delA.get("porMes")).hasSize(1);
         assertThat(delA.get("porMes").get(0).get("total").asLong()).isEqualTo(2);
-        assertThat(total(delA.get("porCategoria"), "Salud mental")).isEqualTo(2);
+        assertThat(total(delA.get("porCategoria"), "Salud mental y emocional")).isEqualTo(2);
         assertThat(delA.get("smsPorMes").get(0).get("segmentos").asLong()).isEqualTo(3);
 
         // nada de nombres ni del contenido de las alertas
@@ -159,7 +159,7 @@ class EstadisticaGlobalTest extends IntegracionTest {
                 .andExpect(status().isOk()).andReturn());
         int filasSalud = 0;
         for (JsonNode categoria : todos.get("porCategoria")) {
-            if (categoria.get("clave").asText().equalsIgnoreCase("salud mental")) {
+            if (categoria.get("clave").asText().equalsIgnoreCase("salud mental y emocional")) {
                 filasSalud++;
                 assertThat(categoria.get("total").asLong()).isGreaterThanOrEqualTo(3);
             }

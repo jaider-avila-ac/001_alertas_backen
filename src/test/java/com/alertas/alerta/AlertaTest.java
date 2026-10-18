@@ -2,7 +2,6 @@ package com.alertas.alerta;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -92,8 +91,7 @@ class AlertaTest extends IntegracionTest {
     // devuelve el token de la persona creada
     private String crearPersonal(Colegio colegio, String documento, Rol rol) throws Exception {
 
-        String body = "{\"tipoDoc\":\"CC\",\"nroDoc\":\"" + documento + "\",\"nombres\":\"Persona\",\"apellidos\":\""
-                + documento + "\",\"rol\":\"" + rol.name() + "\"}";
+        String body = "{\"tipoDoc\":\"CC\",\"nroDoc\":\"" + documento + "\",\"nombres\":\"Persona\",\"apellidos\":\"Prueba\",\"rol\":\"" + rol.name() + "\"}";
         mvc.perform(post("/api/v1/personal").header("Authorization", colegio.admin())
                         .header("Idempotency-Key", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -186,14 +184,10 @@ class AlertaTest extends IntegracionTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("La fecha del hecho no puede ser futura"));
 
-        // categoria desactivada
-        mvc.perform(patch("/api/v1/categorias/" + e.categoriaId() + "/estado").header("Authorization", e.colegio().admin())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"activo\":false}"))
-                .andExpect(status().isOk());
+        // categoria vieja que solo quedo por el historial
+        OWNER.update("UPDATE categorias_alerta SET cat_activa = false WHERE cat_id = ?", e.categoriaId());
         crear(e.docente(), alerta(e, "LEVE")).andExpect(status().isBadRequest());
-        mvc.perform(patch("/api/v1/categorias/" + e.categoriaId() + "/estado").header("Authorization", e.colegio().admin())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"activo\":true}"))
-                .andExpect(status().isOk());
+        OWNER.update("UPDATE categorias_alerta SET cat_activa = true WHERE cat_id = ?", e.categoriaId());
 
         // retirado: sin matricula activa
         mvc.perform(post("/api/v1/estudiantes/" + e.estudiante() + "/retirar").header("Authorization", e.colegio().admin())
@@ -312,6 +306,6 @@ class AlertaTest extends IntegracionTest {
         crear(e.docente(), alerta(e, "MODERADO"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.estado").value("PENDIENTE"))
-                .andExpect(jsonPath("$.psicorientador").value("Persona 656500005"));
+                .andExpect(jsonPath("$.psicorientador").value("Persona Prueba"));
     }
 }

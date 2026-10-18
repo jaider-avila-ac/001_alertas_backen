@@ -30,9 +30,23 @@ class ValoracionTest extends IntegracionTest {
         return mapper.readTree(resultado.getResponse().getContentAsString());
     }
 
+    // los nombres solo llevan letras: cada digito del documento pasa a una letra (6262003 -> Gcgcaad)
+    private String nombreDe(String documento) {
+
+        StringBuilder nombre = new StringBuilder();
+        for (int i = 0; i < documento.length(); i++) {
+            char letra = (char) ('a' + (documento.charAt(i) - '0'));
+            if (i == 0) {
+                letra = Character.toUpperCase(letra);
+            }
+            nombre.append(letra);
+        }
+        return nombre.toString();
+    }
+
     private String crearPersonal(Colegio colegio, String documento, Rol rol) throws Exception {
 
-        String body = "{\"tipoDoc\":\"CC\",\"nroDoc\":\"" + documento + "\",\"nombres\":\"Orienta" + documento + "\","
+        String body = "{\"tipoDoc\":\"CC\",\"nroDoc\":\"" + documento + "\",\"nombres\":\"" + nombreDe(documento) + "\","
                 + "\"apellidos\":\"Prueba\",\"rol\":\"" + rol.name() + "\"}";
         mvc.perform(post("/api/v1/personal").header("Authorization", colegio.admin())
                         .header("Idempotency-Key", UUID.randomUUID().toString())
@@ -163,7 +177,7 @@ class ValoracionTest extends IntegracionTest {
         assertThat(todos).hasSize(2);
         assertThat(todos.get(0).get("codigo").asText()).isEqualTo(beto);
         assertThat(todos.get(0).get("ultima").isNull()).isTrue();
-        assertThat(todos.get(1).get("ultimaPor").asText()).isEqualTo("Orienta6262003 Prueba");
+        assertThat(todos.get(1).get("ultimaPor").asText()).isEqualTo(nombreDe("6262003") + " Prueba");
         assertThat(todos.get(1).get("porValorar").asBoolean()).isFalse();
 
         // pasan mas dias que los que dijo el admin: ana vuelve a quedar por valorar, pero ya no es "nunca"
@@ -180,7 +194,7 @@ class ValoracionTest extends IntegracionTest {
         JsonNode despues = estudiantes(psicorientador, "TODOS");
         for (JsonNode fila : despues) {
             if (fila.get("codigo").asText().equals(beto)) {
-                assertThat(fila.get("ultimaPor").asText()).isEqualTo("Orienta6262004 Prueba");
+                assertThat(fila.get("ultimaPor").asText()).isEqualTo(nombreDe("6262004") + " Prueba");
             }
         }
         assertThat(estudiantes(psicorientador, "POR_VALORAR")).isEmpty();
@@ -227,8 +241,8 @@ class ValoracionTest extends IntegracionTest {
                                 + ",\"nivel\":\"LEVE\",\"descripcion\":\"Problemas de sueno y animo bajo\"}"))
                 .andExpect(status().isCreated()).andReturn());
         assertThat(alerta.get("estado").asText()).isEqualTo("EN_PROCESO");
-        assertThat(alerta.get("psicorientador").asText()).isEqualTo("Orienta6363003 Prueba");
-        assertThat(alerta.get("reportadaPor").asText()).isEqualTo("Orienta6363003 Prueba");
+        assertThat(alerta.get("psicorientador").asText()).isEqualTo(nombreDe("6363003") + " Prueba");
+        assertThat(alerta.get("reportadaPor").asText()).isEqualTo(nombreDe("6363003") + " Prueba");
 
         JsonNode bandeja = leer(mvc.perform(get("/api/v1/atencion/bandeja").header("Authorization", psicorientador))
                 .andReturn()).get("contenido");

@@ -1,5 +1,6 @@
 package com.alertas.cita.dto;
 
+import com.alertas.shared.validacion.ConLetras;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -29,9 +30,11 @@ public record AgendarCitaRequest(
         String modalidad,
 
         @Size(max = 200, message = "El lugar es muy largo")
+        @ConLetras(message = "El lugar debe tener letras")
         String lugar,
 
         @Size(max = 500, message = "La indicacion es muy larga")
+        @ConLetras(message = "La indicacion debe tener letras")
         String indicacion,
 
         List<String> excluir) {

@@ -19,6 +19,7 @@ import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.NombrePersona;
 import com.alertas.shared.dto.PageResponse;
 import com.alertas.shared.exception.ApiException;
+import com.alertas.shared.validacion.Formato;
 import com.alertas.usuario.model.Usuario;
 import com.alertas.usuario.service.UsuarioService;
 import jakarta.persistence.EntityManager;
@@ -59,7 +60,7 @@ public class PersonalServiceImpl implements PersonalService {
     public AdministradorResponse crearAdministrador(AdministradorRequest request) {
 
         Long institucionId = TenantSupport.requireTenant(em);
-        String documento = request.nroDoc().trim();
+        String documento = Formato.documento(request.nroDoc());
 
         validarDocumentoLibre(documento);
 
@@ -68,10 +69,10 @@ public class PersonalServiceImpl implements PersonalService {
         Personal personal = nuevaPersona(institucionId, usuario);
         personal.setTipoDoc(request.tipoDoc());
         personal.setNroDoc(documento);
-        personal.setNombres(request.nombres().trim());
-        personal.setApellidos(request.apellidos().trim());
-        personal.setCorreo(vacioANull(request.correo()));
-        personal.setCelular(vacioANull(request.celular()));
+        personal.setNombres(Formato.nombrePropio(request.nombres()));
+        personal.setApellidos(Formato.nombrePropio(request.apellidos()));
+        personal.setCorreo(Formato.correo(request.correo()));
+        personal.setCelular(Formato.telefono(request.celular()));
 
         repository.save(personal);
         return AdministradorResponse.desde(personal);
@@ -107,7 +108,7 @@ public class PersonalServiceImpl implements PersonalService {
         TenantSupport.requireTenant(em);
 
         Personal personal = obtenerAdministrador(codigo);
-        String documento = request.nroDoc().trim();
+        String documento = Formato.documento(request.nroDoc());
 
         if (!documento.equals(personal.getNroDoc())) {
             if (repository.existsByNroDocAndIdNot(documento, personal.getId())) {
@@ -118,10 +119,10 @@ public class PersonalServiceImpl implements PersonalService {
 
         personal.setTipoDoc(request.tipoDoc());
         personal.setNroDoc(documento);
-        personal.setNombres(request.nombres().trim());
-        personal.setApellidos(request.apellidos().trim());
-        personal.setCorreo(vacioANull(request.correo()));
-        personal.setCelular(vacioANull(request.celular()));
+        personal.setNombres(Formato.nombrePropio(request.nombres()));
+        personal.setApellidos(Formato.nombrePropio(request.apellidos()));
+        personal.setCorreo(Formato.correo(request.correo()));
+        personal.setCelular(Formato.telefono(request.celular()));
 
         repository.saveAndFlush(personal);
         return AdministradorResponse.desde(personal);
@@ -185,7 +186,7 @@ public class PersonalServiceImpl implements PersonalService {
     public PersonalDetalleResponse crear(PersonalRequest request) {
 
         Long institucionId = TenantSupport.requireTenant(em);
-        String documento = request.nroDoc().trim();
+        String documento = Formato.documento(request.nroDoc());
 
         validarDocumentoLibre(documento);
 
@@ -205,7 +206,7 @@ public class PersonalServiceImpl implements PersonalService {
         TenantSupport.requireTenant(em);
 
         Personal personal = obtener(codigo);
-        String documento = request.nroDoc().trim();
+        String documento = Formato.documento(request.nroDoc());
         Long usuarioId = personal.getUsuario().getId();
 
         if (!documento.equals(personal.getNroDoc())) {
@@ -217,10 +218,10 @@ public class PersonalServiceImpl implements PersonalService {
 
         personal.setTipoDoc(request.tipoDoc());
         personal.setNroDoc(documento);
-        personal.setNombres(request.nombres().trim());
-        personal.setApellidos(request.apellidos().trim());
-        personal.setCorreo(vacioANull(request.correo()));
-        personal.setCelular(vacioANull(request.celular()));
+        personal.setNombres(Formato.nombrePropio(request.nombres()));
+        personal.setApellidos(Formato.nombrePropio(request.apellidos()));
+        personal.setCorreo(Formato.correo(request.correo()));
+        personal.setCelular(Formato.telefono(request.celular()));
 
         return detalle(personal);
     }
@@ -418,11 +419,11 @@ public class PersonalServiceImpl implements PersonalService {
     private void copiarDatos(PersonalRequest request, Personal personal) {
 
         personal.setTipoDoc(request.tipoDoc());
-        personal.setNroDoc(request.nroDoc().trim());
-        personal.setNombres(request.nombres().trim());
-        personal.setApellidos(request.apellidos().trim());
-        personal.setCorreo(vacioANull(request.correo()));
-        personal.setCelular(vacioANull(request.celular()));
+        personal.setNroDoc(Formato.documento(request.nroDoc()));
+        personal.setNombres(Formato.nombrePropio(request.nombres()));
+        personal.setApellidos(Formato.nombrePropio(request.apellidos()));
+        personal.setCorreo(Formato.correo(request.correo()));
+        personal.setCelular(Formato.telefono(request.celular()));
     }
 
     private int limitarTamanio(int tamanio) {
@@ -436,14 +437,5 @@ public class PersonalServiceImpl implements PersonalService {
         }
 
         return tamanio;
-    }
-
-    private String vacioANull(String texto) {
-
-        if (texto == null || texto.isBlank()) {
-            return null;
-        }
-
-        return texto.trim();
     }
 }
