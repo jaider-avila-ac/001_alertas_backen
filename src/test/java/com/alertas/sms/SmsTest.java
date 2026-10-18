@@ -248,4 +248,29 @@ class SmsTest extends IntegracionTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"activo\":true}"))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void elSmsVaSoloAlPrimerFamiliarConCelular() throws Exception {
+
+        Colegio colegio = crearColegioCompleto(mvc, mapper, "sms-primero", "53530000");
+        String docente = crearPersonal(colegio, "5353002", Rol.DOCENTE);
+        String estudiante = crearEstudiante(colegio, "5353001");
+
+        // el primero no tiene celular: pasa al segundo, y el tercero no recibe aunque tenga numero
+        String familiares = "{\"familiares\":["
+                + "{\"nombres\":\"Luz\",\"parentesco\":\"MADRE\",\"recibeSms\":false},"
+                + "{\"nombres\":\"Pedro\",\"parentesco\":\"PADRE\",\"celular\":\"3007778899\",\"recibeSms\":true},"
+                + "{\"nombres\":\"Rosa\",\"parentesco\":\"ABUELO\",\"celular\":\"3005556677\",\"recibeSms\":true}]}";
+        mvc.perform(put("/api/v1/estudiantes/" + estudiante + "/familiares").header("Authorization", colegio.admin())
+                        .contentType(MediaType.APPLICATION_JSON).content(familiares))
+                .andExpect(status().isOk());
+
+        smsDelColegio(colegio, true);
+        crearAlerta(colegio, docente, estudiante);
+        esperarEnviados(colegio);
+
+        List<Map<String, Object>> enviados = sms(colegio);
+        assertThat(enviados).hasSize(1);
+        assertThat(enviados.get(0).get("sms_celular")).isEqualTo("3007778899");
+    }
 }

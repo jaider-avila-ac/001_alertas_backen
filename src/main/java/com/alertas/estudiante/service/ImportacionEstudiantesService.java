@@ -9,8 +9,7 @@ public interface ImportacionEstudiantesService {
 
     byte[] plantilla();
 
-    // inactivarAusentes: al confirmar, los activos que no vienen en el archivo quedan inactivos
-    VistaPreviaImportacionResponse vistaPrevia(InputStream archivo, boolean inactivarAusentes);
+    VistaPreviaImportacionResponse vistaPrevia(InputStream archivo);
 
     ResultadoImportacionResponse confirmar(String token);
 

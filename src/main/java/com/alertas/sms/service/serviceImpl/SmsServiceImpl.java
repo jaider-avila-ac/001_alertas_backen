@@ -62,7 +62,7 @@ public class SmsServiceImpl implements SmsService {
                 + ". Orientacion escolar se comunicara con ustedes.";
 
         List<Long> ids = new ArrayList<>();
-        for (String celular : new LinkedHashSet<>(repository.celularesFamiliares(estudianteId))) {
+        for (String celular : repository.celularFamiliar(estudianteId)) {
             ids.add(guardar(institucionId, "ALERTA_CREADA", "FAMILIAR", celular, texto, alertaId, null));
         }
 
@@ -119,7 +119,7 @@ public class SmsServiceImpl implements SmsService {
 
         // a la familia: si no esta apagado y, en citas solo por solicitudes del estudiante, si el lo autorizo
         if (familiaActiva && repository.alertasQuePermitenFamilia(citaId) > 0) {
-            for (String celular : repository.celularesFamiliares(estudianteId)) {
+            for (String celular : repository.celularFamiliar(estudianteId)) {
                 if (yaAvisados.add(celular)) {
                     ids.add(guardar(institucionId, evento, "FAMILIAR", celular, paraFamilia, null, citaId));
                 }

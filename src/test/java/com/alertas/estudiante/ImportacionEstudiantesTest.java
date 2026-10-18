@@ -67,15 +67,10 @@ class ImportacionEstudiantesTest extends IntegracionTest {
     }
 
     private ResultActions vistaPrevia(Colegio colegio, byte[] archivo) throws Exception {
-        return vistaPrevia(colegio, archivo, false);
-    }
-
-    private ResultActions vistaPrevia(Colegio colegio, byte[] archivo, boolean inactivarAusentes) throws Exception {
 
         MockMultipartFile parte = new MockMultipartFile("archivo", "estudiantes.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", archivo);
         return mvc.perform(multipart("/api/v1/estudiantes/importacion/vista-previa").file(parte)
-                .param("inactivarAusentes", String.valueOf(inactivarAusentes))
                 .header("Authorization", colegio.admin()));
     }
 
@@ -129,7 +124,7 @@ class ImportacionEstudiantesTest extends IntegracionTest {
     }
 
     @Test
-    void importaYLuegoActualizaEInactivaALosQueNoVienen() throws Exception {
+    void importaYLuegoActualiza() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "imp-ok", "83830000");
 
@@ -178,18 +173,17 @@ class ImportacionEstudiantesTest extends IntegracionTest {
         mvc.perform(get("/api/v1/estudiantes").param("texto", "luis").header("Authorization", colegio.admin()))
                 .andExpect(jsonPath("$.contenido[0].grupo").value("6B"));
 
-        // el año siguiente: la lista solo trae a Luis y se pide inactivar a los que no vienen
-        byte[] siguiente = excel(new String[] {"TI", "9002", "Luis", "Gil", "M", "", "", "7B", "", "", ""});
-        JsonNode tercera = leer(vistaPrevia(colegio, siguiente, true)
-                .andExpect(jsonPath("$.actualizados").value(1))
-                .andExpect(jsonPath("$.seInactivan").value(3))
+        // el año siguiente solo se suben los nuevos: los que no vienen siguen igual
+        byte[] siguiente = excel(new String[] {"TI", "9005", "Otro", "Nuevo", "", "", "", "6A", "", "", ""});
+        JsonNode tercera = leer(vistaPrevia(colegio, siguiente)
+                .andExpect(jsonPath("$.nuevos").value(1))
+                .andExpect(jsonPath("$.seInactivan").doesNotExist())
                 .andReturn());
         confirmar(colegio, tercera.get("token").asText())
-                .andExpect(jsonPath("$.inactivados").value(3));
+                .andExpect(jsonPath("$.creados").value(1));
 
         mvc.perform(get("/api/v1/estudiantes").header("Authorization", colegio.admin()))
-                .andExpect(jsonPath("$.totalElementos").value(1))
-                .andExpect(jsonPath("$.contenido[0].grupo").value("7B"));
+                .andExpect(jsonPath("$.totalElementos").value(5));
     }
 
     @Test

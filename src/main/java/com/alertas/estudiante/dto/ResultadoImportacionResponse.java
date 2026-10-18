@@ -1,5 +1,5 @@
 package com.alertas.estudiante.dto;
 
-// inactivados: los que no venian en el archivo (solo si se pidio)
-public record ResultadoImportacionResponse(int creados, int actualizados, int inactivados) {
+// para inactivar a los que ya no estan hay otro excel (InactivacionEstudiantesService)
+public record ResultadoImportacionResponse(int creados, int actualizados) {
 }

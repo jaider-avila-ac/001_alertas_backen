@@ -19,10 +19,11 @@ public interface SmsEnvioRepository extends JpaRepository<SmsEnvio, Long> {
             nativeQuery = true)
     List<Object[]> estudiante(@Param("estudianteId") Long estudianteId);
 
-    // celulares de los familiares marcados "recibe sms" (maximo 3)
+    // el sms va a un solo familiar: el primero (por posicion) que recibe sms y tiene celular.
+    // si el primero no tiene numero se pasa al segundo y asi. lista vacia o de uno
     @Query(value = "SELECT fam_celular FROM familiares WHERE fam_est_id = :estudianteId AND fam_recibe_sms "
-            + "AND fam_celular IS NOT NULL ORDER BY fam_posicion", nativeQuery = true)
-    List<String> celularesFamiliares(@Param("estudianteId") Long estudianteId);
+            + "AND fam_celular IS NOT NULL ORDER BY fam_posicion LIMIT 1", nativeQuery = true)
+    List<String> celularFamiliar(@Param("estudianteId") Long estudianteId);
 
     // [id del estudiante, inicio de la cita]
     @Query(value = "SELECT cit_est_id, cit_inicio FROM citas WHERE cit_id = :citaId", nativeQuery = true)

@@ -57,7 +57,7 @@ public final class ExcelEstudiantes {
             {"Ejemplo", "", "TI | 1067123456 | Ana Maria | Rios Perez | F | 25/03/2012 | | 6A | Luz Perez | MADRE | 3001234567"},
             {"Importante", "", "Si el estudiante ya existe (mismo documento) se actualizan sus datos. "
                     + "Una celda vacia no borra lo que ya tenia"},
-            {"Cada año", "", "Sube la lista: los nuevos se crean y los demas se actualizan. Si marcas la opcion, los que no vengan en el archivo quedan inactivos"},
+            {"Cada año", "", "Sube solo a los estudiantes nuevos (o a los que cambian de datos). Para inactivar a los que ya no estan usa el Excel de inactivar"},
     };
 
     private ExcelEstudiantes() {

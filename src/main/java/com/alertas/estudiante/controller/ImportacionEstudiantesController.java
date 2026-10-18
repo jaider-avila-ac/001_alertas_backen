@@ -40,16 +40,14 @@ public class ImportacionEstudiantesController {
 
     // no guarda nada: revisa el archivo y dice que pasaria
     @PostMapping(value = "/importacion/vista-previa", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public VistaPreviaImportacionResponse vistaPrevia(
-            @RequestParam("archivo") MultipartFile archivo,
-            @RequestParam(defaultValue = "false") boolean inactivarAusentes) {
+    public VistaPreviaImportacionResponse vistaPrevia(@RequestParam("archivo") MultipartFile archivo) {
 
         if (archivo.isEmpty()) {
             throw ApiException.invalido("Selecciona el archivo de Excel");
         }
 
         try (InputStream contenido = archivo.getInputStream()) {
-            return importacionService.vistaPrevia(contenido, inactivarAusentes);
+            return importacionService.vistaPrevia(contenido);
         } catch (IOException e) {
             throw ApiException.invalido("No se pudo leer el archivo");
         }

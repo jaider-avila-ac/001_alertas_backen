@@ -85,8 +85,4 @@ public interface EstudianteRepository extends JpaRepository<Estudiante, Long> {
             nativeQuery = true)
     List<Long> usuarioIdsPorEdad(@Param("edad") String edad);
 
-    // al importar: los activos que no vienen en el archivo (se fueron o se graduaron)
-    @Query(value = "SELECT e.est_usu_id FROM estudiantes e JOIN usuarios u ON u.usu_id = e.est_usu_id "
-            + "WHERE u.usu_activo AND e.est_nro_doc NOT IN (:documentos)", nativeQuery = true)
-    List<Long> activosFueraDe(@Param("documentos") Collection<String> documentos);
 }

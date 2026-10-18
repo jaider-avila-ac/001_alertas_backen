@@ -93,7 +93,7 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
 
     @Override
     @Transactional(readOnly = true)
-    public VistaPreviaImportacionResponse vistaPrevia(InputStream archivo, boolean inactivarAusentes) {
+    public VistaPreviaImportacionResponse vistaPrevia(InputStream archivo) {
 
         Long institucionId = TenantSupport.requireTenant(em);
 
@@ -153,7 +153,7 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
 
         if (errores.isEmpty()) {
             token = UUID.randomUUID().toString();
-            guardar(institucionId, token, new ImportacionGuardada(inactivarAusentes, validas));
+            guardar(institucionId, token, new ImportacionGuardada(validas));
         }
 
         int totalErrores = errores.size();
@@ -164,18 +164,11 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
 
         int actualizados = yaEstudiantes.size();
 
-        // los activos que no vienen en el archivo, si se pidio inactivarlos
-        int seInactivan = 0;
-        if (inactivarAusentes && !documentos.isEmpty()) {
-            seInactivan = estudianteRepository.activosFueraDe(documentos).size();
-        }
-
         return new VistaPreviaImportacionResponse(
                 token,
                 filas.size(),
                 validas.size() - actualizados - usadosPorOtros.size(),
                 actualizados,
-                seInactivan,
                 mostrados,
                 totalErrores);
     }
@@ -390,19 +383,10 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
             }
         }
 
-        // los que ya no estan (se retiraron o se graduaron) quedan inactivos
-        int inactivados = 0;
-        if (guardada.inactivarAusentes()) {
-            List<Long> ausentes = estudianteRepository.activosFueraDe(documentos);
-            if (!ausentes.isEmpty()) {
-                inactivados = usuarioService.cambiarEstadoMasivo(null, ausentes, false);
-            }
-        }
-
         bitacoraService.registrar("IMPORTAR_ESTUDIANTES", "estudiante", null,
-                creados + " creados, " + actualizados + " actualizados, " + inactivados + " inactivados");
+                creados + " creados, " + actualizados + " actualizados");
 
-        return new ResultadoImportacionResponse(creados, actualizados, inactivados);
+        return new ResultadoImportacionResponse(creados, actualizados);
     }
 
     // el familiar del excel queda como el primero; los otros dos no se tocan

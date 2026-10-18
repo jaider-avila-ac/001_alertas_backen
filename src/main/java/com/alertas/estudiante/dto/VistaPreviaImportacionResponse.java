@@ -9,7 +9,6 @@ public record VistaPreviaImportacionResponse(
         int totalFilas,
         int nuevos,
         int actualizados,
-        int seInactivan,
         List<ErrorFila> errores,
         int totalErrores) {
 }
