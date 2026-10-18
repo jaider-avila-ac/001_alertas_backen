@@ -19,9 +19,7 @@ public record AlertaExpedienteResponse(
         String horarioSeguro,
         String modalidadPreferida,
         Boolean autorizaSmsFamiliares,
-        String gradoNombre,
-        String grupoNombre,
-        int anio,
+        String grupo,
         String reportadaPor,
         String psicorientador,
         String conclusion,
@@ -45,9 +43,7 @@ public record AlertaExpedienteResponse(
                 fila.getHorarioSeguro(),
                 fila.getModalidadPreferida(),
                 fila.getAutorizaSmsFamiliares(),
-                fila.getGradoNombre(),
-                fila.getGrupoNombre(),
-                fila.getAnio(),
+                fila.getGrupo(),
                 fila.getReportadaPor(),
                 fila.getPsicorientador(),
                 fila.getConclusion(),
@@ -60,7 +56,7 @@ public record AlertaExpedienteResponse(
     public AlertaExpedienteResponse sinConclusion() {
 
         return new AlertaExpedienteResponse(codigo, origen, estado, nivel, prioritaria, peligroInmediato, categoria,
-                descripcion, fechaHecho, lugar, horarioSeguro, modalidadPreferida, autorizaSmsFamiliares, gradoNombre,
-                grupoNombre, anio, reportadaPor, psicorientador, null, creadoEn, completadaEn, List.of());
+                descripcion, fechaHecho, lugar, horarioSeguro, modalidadPreferida, autorizaSmsFamiliares, grupo,
+                reportadaPor, psicorientador, null, creadoEn, completadaEn, List.of());
     }
 }

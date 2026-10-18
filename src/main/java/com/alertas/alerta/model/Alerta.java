@@ -16,7 +16,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 // una alerta tiene su propio estado. la del estudiante (solicitud de ayuda) es la misma entidad con origen ESTUDIANTE.
-// estudiante, categoria, matricula y demas van como id para no amarrar este modulo a otros
+// estudiante, categoria y demas van como id para no amarrar este modulo a otros
 @Entity
 @Table(name = "alertas")
 @Getter
@@ -80,15 +80,9 @@ public class Alerta {
     @Column(name = "ale_autoriza_sms_familiares")
     private Boolean autorizaSmsFamiliares;
 
-    // anio, grupo y matricula del momento: las estadisticas no cambian si despues pasa de grado
-    @Column(name = "ale_anl_id", nullable = false, updatable = false)
-    private Long anioId;
-
-    @Column(name = "ale_grp_id", nullable = false, updatable = false)
-    private Long grupoId;
-
-    @Column(name = "ale_mat_id", nullable = false, updatable = false)
-    private Long matriculaId;
+    // el que tenia el estudiante ese dia
+    @Column(name = "ale_grupo", length = 60, updatable = false)
+    private String grupo;
 
     @Column(name = "ale_estado", nullable = false, length = 12)
     private String estado = PENDIENTE;

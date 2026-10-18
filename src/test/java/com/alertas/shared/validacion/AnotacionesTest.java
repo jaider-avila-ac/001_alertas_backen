@@ -19,7 +19,7 @@ class AnotacionesTest {
 
     private EstudianteRequest estudiante(String tipoDoc, String nroDoc, String nombres, String celular, String correo) {
         return new EstudianteRequest(tipoDoc, nroDoc, nombres, "Rios", null, null, celular, correo,
-                null, null, null, null, null, 1L);
+                null, null, null, null, null, "6A");
     }
 
     private List<String> mensajes(Object objeto) {

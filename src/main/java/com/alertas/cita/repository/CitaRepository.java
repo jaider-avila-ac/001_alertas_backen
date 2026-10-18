@@ -55,15 +55,13 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
             @Param("desde") OffsetDateTime desde,
             @Param("hasta") OffsetDateTime hasta);
 
-    // nombres para mostrar la cita: [codigo, nombres y apellidos del estudiante, grado, grupo,
+    // nombres para mostrar la cita: [codigo, nombres y apellidos del estudiante, grupo,
     //  nombres y apellidos del psicorientador]
     @Query(value = """
-            SELECT e.est_codigo, e.est_nombres, e.est_apellidos, gr.gra_nombre, g.grp_nombre,
+            SELECT e.est_codigo, e.est_nombres, e.est_apellidos, e.est_grupo,
                    p.per_nombres, p.per_apellidos
             FROM citas c
             JOIN estudiantes e ON e.est_id = c.cit_est_id
-            JOIN grupos g ON g.grp_id = c.cit_grp_id
-            JOIN grados gr ON gr.gra_id = g.grp_gra_id
             JOIN personal p ON p.per_id = c.cit_psi_id
             WHERE c.cit_id = :citaId
             """, nativeQuery = true)

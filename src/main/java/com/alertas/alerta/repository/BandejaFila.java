@@ -12,9 +12,7 @@ public interface BandejaFila {
 
     String getApellidos();
 
-    String getGradoNombre();
-
-    String getGrupoNombre();
+    String getGrupo();
 
     Long getAlertas();
 

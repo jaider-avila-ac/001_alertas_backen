@@ -12,9 +12,5 @@ public interface ValoracionFila {
 
     String getObservacion();
 
-    String getGradoNombre();
 
-    String getGrupoNombre();
-
-    Integer getAnio();
 }

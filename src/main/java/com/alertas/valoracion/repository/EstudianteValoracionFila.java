@@ -11,9 +11,7 @@ public interface EstudianteValoracionFila {
 
     String getApellidos();
 
-    String getGradoNombre();
-
-    String getGrupoNombre();
+    String getGrupo();
 
     Instant getUltima();
 

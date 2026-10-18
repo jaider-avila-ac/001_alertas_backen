@@ -42,14 +42,14 @@ public class ImportacionEstudiantesController {
     @PostMapping(value = "/importacion/vista-previa", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public VistaPreviaImportacionResponse vistaPrevia(
             @RequestParam("archivo") MultipartFile archivo,
-            @RequestParam(required = false) Long anioId) {
+            @RequestParam(defaultValue = "false") boolean inactivarAusentes) {
 
         if (archivo.isEmpty()) {
             throw ApiException.invalido("Selecciona el archivo de Excel");
         }
 
         try (InputStream contenido = archivo.getInputStream()) {
-            return importacionService.vistaPrevia(contenido, anioId);
+            return importacionService.vistaPrevia(contenido, inactivarAusentes);
         } catch (IOException e) {
             throw ApiException.invalido("No se pudo leer el archivo");
         }
@@ -64,8 +64,8 @@ public class ImportacionEstudiantesController {
     @GetMapping("/exportar")
     public ResponseEntity<byte[]> exportar(
             @RequestParam(required = false) String texto,
-            @RequestParam(required = false) Long gradoId,
-            @RequestParam(required = false) Long grupoId,
+            @RequestParam(required = false) String grupo,
+            @RequestParam(required = false) String edad,
             @RequestParam(defaultValue = "activos") String estado) {
 
         Boolean activo = null;
@@ -76,7 +76,7 @@ public class ImportacionEstudiantesController {
             activo = false;
         }
 
-        return descargar(importacionService.exportar(texto, gradoId, grupoId, activo), "estudiantes.xlsx");
+        return descargar(importacionService.exportar(texto, grupo, edad, activo), "estudiantes.xlsx");
     }
 
     private ResponseEntity<byte[]> descargar(byte[] contenido, String nombre) {

@@ -3,7 +3,7 @@ package com.alertas.alerta.repository;
 import java.time.Instant;
 import java.time.LocalDate;
 
-// una fila de "mis alertas reportadas". grado y grupo son los del momento de la alerta
+// una fila de "mis alertas reportadas". el grupo es el que tenia el estudiante ese dia
 public interface AlertaFila {
 
     String getCodigo();
@@ -16,11 +16,7 @@ public interface AlertaFila {
 
     String getEstudianteApellidos();
 
-    String getGradoNombre();
-
-    String getGrupoNombre();
-
-    Integer getAnio();
+    String getGrupo();
 
     String getCategoria();
 

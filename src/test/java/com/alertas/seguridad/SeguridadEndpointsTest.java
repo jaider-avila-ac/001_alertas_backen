@@ -174,10 +174,7 @@ class SeguridadEndpointsTest extends IntegracionTest {
         String docenteA = crearPersonal(a, "727200002", Rol.DOCENTE);
 
         Colegio b = crearColegioCompleto(mvc, mapper, "seg-b", "73730000");
-        Long anioB = anioActivo(b);
-        Long gradoB = primerGrado(b);
-        Long grupoB = crearGrupo(b, anioB, gradoB);
-        String estudianteB = crearEstudiante(b, "737300001", grupoB);
+        String estudianteB = crearEstudiante(b, "737300001", "Sexto A");
         String docenteB = crearPersonal(b, "737300002", Rol.DOCENTE);
         String alertaB = crearAlerta(b, docenteB, estudianteB);
         String personalB = obtener("/api/v1/personal", b.admin()).get("contenido").get(0).get("codigo").asText();
@@ -190,7 +187,7 @@ class SeguridadEndpointsTest extends IntegracionTest {
                 "SELECT est_codigo_qr FROM estudiantes WHERE est_ins_id = ?", String.class, b.id());
 
         // los codigos son aleatorios y no se repiten entre tablas: se prueban todos en cada ruta.
-        // los ids numericos si se repiten entre tablas (el grupo 5 y la categoria 5 pueden existir),
+        // los ids numericos si se repiten entre tablas (la categoria 5 y la notificacion 5 pueden existir),
         // por eso cada ruta con {id} recibe el id de B de su propia tabla
         List<String> codigos = new ArrayList<>();
         codigos.add(estudianteB);
@@ -201,9 +198,6 @@ class SeguridadEndpointsTest extends IntegracionTest {
 
         Map<String, Long> idsPorRuta = new HashMap<>();
         idsPorRuta.put("/api/v1/categorias/", categoriaB);
-        idsPorRuta.put("/api/v1/grupos/", grupoB);
-        idsPorRuta.put("/api/v1/grados/", gradoB);
-        idsPorRuta.put("/api/v1/anios-lectivos/", anioB);
         idsPorRuta.put("/api/v1/notificaciones/", notificacionB);
 
         Map<String, String> tokensA = new HashMap<>();
@@ -277,48 +271,19 @@ class SeguridadEndpointsTest extends IntegracionTest {
                 SELECT (SELECT count(*) FROM estudiantes WHERE est_ins_id = ?) || '|' ||
                        (SELECT string_agg(est_nombres || est_apellidos || est_actualizado_en, ',') FROM estudiantes WHERE est_ins_id = ?) || '|' ||
                        (SELECT string_agg(ale_nivel || ale_estado || coalesce(ale_psi_id, 0), ',') FROM alertas WHERE ale_ins_id = ?) || '|' ||
-                       (SELECT string_agg(grp_nombre || grp_gra_id, ',') FROM grupos WHERE grp_ins_id = ?) || '|' ||
+                       (SELECT string_agg(coalesce(est_grupo, '-'), ',') FROM estudiantes WHERE est_ins_id = ?) || '|' ||
                        (SELECT string_agg(usu_usuario || usu_activo || usu_contrasena_hash, ',') FROM usuarios WHERE usu_ins_id = ?)
                 """, String.class, colegio.id(), colegio.id(), colegio.id(), colegio.id(), colegio.id());
     }
 
-    private Long anioActivo(Colegio colegio) throws Exception {
-
-        for (JsonNode fila : obtener("/api/v1/anios-lectivos", colegio.admin())) {
-            if (fila.get("anio").asInt() == ESTE_ANIO) {
-                return fila.get("id").asLong();
-            }
-        }
-        throw new IllegalStateException("Sin anio activo");
-    }
-
-    private Long primerGrado(Colegio colegio) throws Exception {
-
-        for (JsonNode fila : obtener("/api/v1/grados", colegio.admin())) {
-            if (fila.get("nombre").asText().equals("Sexto")) {
-                return fila.get("id").asLong();
-            }
-        }
-        throw new IllegalStateException("Sin grado Sexto");
-    }
-
-    private Long crearGrupo(Colegio colegio, Long anio, Long grado) throws Exception {
-
-        Map<String, Object> datos = new HashMap<>();
-        datos.put("anioId", anio);
-        datos.put("gradoId", grado);
-        datos.put("nombre", "A");
-        return enviar("/api/v1/grupos", colegio.admin(), datos).get("id").asLong();
-    }
-
-    private String crearEstudiante(Colegio colegio, String documento, Long grupo) throws Exception {
+    private String crearEstudiante(Colegio colegio, String documento, String grupo) throws Exception {
 
         Map<String, Object> datos = new HashMap<>();
         datos.put("tipoDoc", "TI");
         datos.put("nroDoc", documento);
         datos.put("nombres", "Luisa");
         datos.put("apellidos", "Prueba");
-        datos.put("grupoId", grupo);
+        datos.put("grupo", grupo);
         return enviar("/api/v1/estudiantes", colegio.admin(), datos).get("codigo").asText();
     }
 

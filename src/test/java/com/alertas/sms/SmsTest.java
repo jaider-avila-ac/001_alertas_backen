@@ -65,23 +65,7 @@ class SmsTest extends IntegracionTest {
     // estudiante con celular y dos familiares: uno recibe sms y el otro no
     private String crearEstudiante(Colegio colegio, String documento) throws Exception {
 
-        Long anio = null;
-        for (JsonNode fila : leer(mvc.perform(get("/api/v1/anios-lectivos").header("Authorization", colegio.admin())).andReturn())) {
-            if (fila.get("anio").asInt() == LocalDate.now().getYear()) {
-                anio = fila.get("id").asLong();
-            }
-        }
-        Long grado = null;
-        for (JsonNode fila : leer(mvc.perform(get("/api/v1/grados").header("Authorization", colegio.admin())).andReturn())) {
-            if (fila.get("nombre").asText().equals("Sexto")) {
-                grado = fila.get("id").asLong();
-            }
-        }
-        Long grupo = leer(mvc.perform(post("/api/v1/grupos").header("Authorization", colegio.admin())
-                        .header("Idempotency-Key", UUID.randomUUID().toString())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"anioId\":" + anio + ",\"gradoId\":" + grado + ",\"nombre\":\"A\"}"))
-                .andReturn()).get("id").asLong();
+        String grupo = "Sexto A";
 
         Map<String, Object> datos = new HashMap<>();
         datos.put("tipoDoc", "TI");
@@ -89,7 +73,7 @@ class SmsTest extends IntegracionTest {
         datos.put("nombres", "José");
         datos.put("apellidos", "Peña");
         datos.put("celular", "3001112233");
-        datos.put("grupoId", grupo);
+        datos.put("grupo", grupo);
         String codigo = leer(mvc.perform(post("/api/v1/estudiantes").header("Authorization", colegio.admin())
                         .header("Idempotency-Key", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(datos)))

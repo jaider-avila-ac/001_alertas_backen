@@ -74,15 +74,12 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
     @Query(value = """
             SELECT a.ale_codigo AS codigo, a.ale_origen AS origen,
                    e.est_codigo AS estudianteCodigo, e.est_nombres AS estudianteNombres, e.est_apellidos AS estudianteApellidos,
-                   gr.gra_nombre AS gradoNombre, g.grp_nombre AS grupoNombre, an.anl_anio AS anio,
+                   a.ale_grupo AS grupo,
                    c.cat_nombre AS categoria, a.ale_nivel AS nivel, a.ale_estado AS estado,
                    a.ale_peligro_inmediato AS peligroInmediato, a.ale_prioritaria AS prioritaria,
                    a.ale_fecha_hecho AS fechaHecho, a.ale_creado_en AS creadoEn
             FROM alertas a
             JOIN estudiantes e ON e.est_id = a.ale_est_id
-            JOIN grupos g ON g.grp_id = a.ale_grp_id
-            JOIN grados gr ON gr.gra_id = g.grp_gra_id
-            JOIN anios_lectivos an ON an.anl_id = a.ale_anl_id
             JOIN categorias_alerta c ON c.cat_id = a.ale_cat_id
             WHERE a.ale_reportada_por = :usuarioId
               AND (CAST(:estado AS text) IS NULL OR a.ale_estado = CAST(:estado AS text))
@@ -101,15 +98,12 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
     @Query(value = """
             SELECT a.ale_codigo AS codigo, a.ale_origen AS origen,
                    e.est_codigo AS estudianteCodigo, e.est_nombres AS estudianteNombres, e.est_apellidos AS estudianteApellidos,
-                   gr.gra_nombre AS gradoNombre, g.grp_nombre AS grupoNombre, an.anl_anio AS anio,
+                   a.ale_grupo AS grupo,
                    c.cat_nombre AS categoria, a.ale_nivel AS nivel, a.ale_estado AS estado,
                    a.ale_peligro_inmediato AS peligroInmediato, a.ale_prioritaria AS prioritaria,
                    a.ale_fecha_hecho AS fechaHecho, a.ale_creado_en AS creadoEn
             FROM alertas a
             JOIN estudiantes e ON e.est_id = a.ale_est_id
-            JOIN grupos g ON g.grp_id = a.ale_grp_id
-            JOIN grados gr ON gr.gra_id = g.grp_gra_id
-            JOIN anios_lectivos an ON an.anl_id = a.ale_anl_id
             JOIN categorias_alerta c ON c.cat_id = a.ale_cat_id
             WHERE (CAST(:estado AS text) IS NULL OR a.ale_estado = CAST(:estado AS text))
               AND (CAST(:texto AS text) IS NULL
@@ -127,18 +121,15 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
     Page<AlertaFila> todas(@Param("estado") String estado, @Param("texto") String texto, Pageable pageable);
 
     // detalle con los nombres ya resueltos. devuelve una fila con
-    // [nombre de categoria, grado, grupo, anio, nombres de quien reporta, apellidos de quien reporta,
+    // [nombre de categoria, grupo del momento, nombres de quien reporta, apellidos de quien reporta,
     //  nombres del psicorientador, apellidos del psicorientador, codigo, nombres y apellidos del estudiante]
     @Query(value = """
-            SELECT c.cat_nombre, gr.gra_nombre, g.grp_nombre, an.anl_anio,
+            SELECT c.cat_nombre, a.ale_grupo,
                    coalesce(rp.per_nombres, re.est_nombres), coalesce(rp.per_apellidos, re.est_apellidos),
                    ps.per_nombres, ps.per_apellidos,
                    e.est_codigo, e.est_nombres, e.est_apellidos
             FROM alertas a
             JOIN categorias_alerta c ON c.cat_id = a.ale_cat_id
-            JOIN grupos g ON g.grp_id = a.ale_grp_id
-            JOIN grados gr ON gr.gra_id = g.grp_gra_id
-            JOIN anios_lectivos an ON an.anl_id = a.ale_anl_id
             JOIN estudiantes e ON e.est_id = a.ale_est_id
             LEFT JOIN personal rp ON rp.per_usu_id = a.ale_reportada_por
             LEFT JOIN estudiantes re ON re.est_usu_id = a.ale_reportada_por
@@ -153,7 +144,7 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
     // primero las prioritarias, luego el nivel y la mas vieja
     @Query(value = """
             SELECT e.est_codigo AS codigo, e.est_nombres AS nombres, e.est_apellidos AS apellidos,
-                   gr.gra_nombre AS gradoNombre, g.grp_nombre AS grupoNombre,
+                   e.est_grupo AS grupo,
                    count(*) AS alertas,
                    max(CASE a.ale_nivel WHEN 'CRITICO' THEN 4 WHEN 'ALTO' THEN 3 WHEN 'MODERADO' THEN 2 ELSE 1 END) AS nivelMaximo,
                    bool_or(a.ale_prioritaria) AS prioritaria,
@@ -162,12 +153,8 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
                    min(a.ale_creado_en) AS desde
             FROM alertas a
             JOIN estudiantes e ON e.est_id = a.ale_est_id
-            LEFT JOIN anios_lectivos an ON an.anl_activo
-            LEFT JOIN matriculas m ON m.mat_est_id = e.est_id AND m.mat_anl_id = an.anl_id
-            LEFT JOIN grupos g ON g.grp_id = m.mat_grp_id
-            LEFT JOIN grados gr ON gr.gra_id = g.grp_gra_id
             WHERE a.ale_estado IN ('PENDIENTE', 'EN_PROCESO') AND a.ale_psi_id IS NULL
-            GROUP BY e.est_id, e.est_codigo, e.est_nombres, e.est_apellidos, gr.gra_nombre, g.grp_nombre
+            GROUP BY e.est_id, e.est_codigo, e.est_nombres, e.est_apellidos, e.est_grupo
             ORDER BY bool_or(a.ale_prioritaria) DESC,
                      max(CASE a.ale_nivel WHEN 'CRITICO' THEN 4 WHEN 'ALTO' THEN 3 WHEN 'MODERADO' THEN 2 ELSE 1 END) DESC,
                      min(a.ale_creado_en)
@@ -182,7 +169,7 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
     // "mis estudiantes" del psicorientador por pestana:
     // POR_AGENDAR: con alertas activas y sin cita programada. CON_CITA: cita programada que no se ha iniciado.
     // EN_CURSO: cita iniciada que no se ha finalizado. HISTORIAL: sin alertas activas. la hora no cuenta
-    // filtros opcionales: nivel y categoria (de sus alertas), grado y grupo (del anio activo)
+    // filtros opcionales: nivel y categoria (de sus alertas) y grupo del estudiante
     @Query(value = """
             WITH mios AS (
                 SELECT a.ale_est_id AS est_id,
@@ -198,22 +185,17 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
                    AND (CAST(:categoriaId AS bigint) IS NULL OR bool_or(a.ale_cat_id = CAST(:categoriaId AS bigint)))
             )
             SELECT e.est_codigo AS codigo, e.est_nombres AS nombres, e.est_apellidos AS apellidos,
-                   gr.gra_nombre AS gradoNombre, g.grp_nombre AS grupoNombre,
+                   e.est_grupo AS grupo,
                    mios.activas AS activas, mios.nivel_maximo AS nivelMaximo, mios.prioritaria AS prioritaria,
                    c.cit_codigo AS citaCodigo, c.cit_inicio AS citaInicio, c.cit_fin AS citaFin
             FROM mios
             JOIN estudiantes e ON e.est_id = mios.est_id
             LEFT JOIN citas c ON c.cit_est_id = e.est_id AND c.cit_estado = 'PROGRAMADA'
-            LEFT JOIN anios_lectivos an ON an.anl_activo
-            LEFT JOIN matriculas m ON m.mat_est_id = e.est_id AND m.mat_anl_id = an.anl_id
-            LEFT JOIN grupos g ON g.grp_id = m.mat_grp_id
-            LEFT JOIN grados gr ON gr.gra_id = g.grp_gra_id
             WHERE ((:pestana = 'POR_AGENDAR' AND mios.activas > 0 AND c.cit_id IS NULL)
                 OR (:pestana = 'CON_CITA' AND c.cit_psi_id = :psicorientadorId AND c.cit_iniciada_en IS NULL)
                 OR (:pestana = 'EN_CURSO' AND c.cit_psi_id = :psicorientadorId AND c.cit_iniciada_en IS NOT NULL)
                 OR (:pestana = 'HISTORIAL' AND mios.activas = 0))
-              AND (CAST(:gradoId AS bigint) IS NULL OR g.grp_gra_id = CAST(:gradoId AS bigint))
-              AND (CAST(:grupoId AS bigint) IS NULL OR g.grp_id = CAST(:grupoId AS bigint))
+              AND (CAST(:grupo AS text) IS NULL OR lower(e.est_grupo) = lower(CAST(:grupo AS text)))
             ORDER BY c.cit_inicio NULLS LAST, mios.prioritaria DESC, mios.nivel_maximo DESC NULLS LAST,
                      e.est_apellidos, e.est_nombres
             """,
@@ -231,15 +213,11 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
             FROM mios
             JOIN estudiantes e ON e.est_id = mios.est_id
             LEFT JOIN citas c ON c.cit_est_id = e.est_id AND c.cit_estado = 'PROGRAMADA'
-            LEFT JOIN anios_lectivos an ON an.anl_activo
-            LEFT JOIN matriculas m ON m.mat_est_id = e.est_id AND m.mat_anl_id = an.anl_id
-            LEFT JOIN grupos g ON g.grp_id = m.mat_grp_id
             WHERE ((:pestana = 'POR_AGENDAR' AND mios.activas > 0 AND c.cit_id IS NULL)
                 OR (:pestana = 'CON_CITA' AND c.cit_psi_id = :psicorientadorId AND c.cit_iniciada_en IS NULL)
                 OR (:pestana = 'EN_CURSO' AND c.cit_psi_id = :psicorientadorId AND c.cit_iniciada_en IS NOT NULL)
                 OR (:pestana = 'HISTORIAL' AND mios.activas = 0))
-              AND (CAST(:gradoId AS bigint) IS NULL OR g.grp_gra_id = CAST(:gradoId AS bigint))
-              AND (CAST(:grupoId AS bigint) IS NULL OR g.grp_id = CAST(:grupoId AS bigint))
+              AND (CAST(:grupo AS text) IS NULL OR lower(e.est_grupo) = lower(CAST(:grupo AS text)))
             """,
             nativeQuery = true)
     Page<EstudianteAtencionFila> misEstudiantes(
@@ -247,8 +225,7 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
             @Param("pestana") String pestana,
             @Param("nivel") String nivel,
             @Param("categoriaId") Long categoriaId,
-            @Param("gradoId") Long gradoId,
-            @Param("grupoId") Long grupoId,
+            @Param("grupo") String grupo,
             Pageable pageable);
 
     // todas las alertas del estudiante con los nombres resueltos, de la mas nueva a la mas vieja
@@ -258,15 +235,12 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
                    c.cat_nombre AS categoria, a.ale_descripcion AS descripcion, a.ale_fecha_hecho AS fechaHecho,
                    a.ale_lugar AS lugar, a.ale_horario_seguro AS horarioSeguro,
                    a.ale_modalidad_preferida AS modalidadPreferida, a.ale_autoriza_sms_familiares AS autorizaSmsFamiliares,
-                   gr.gra_nombre AS gradoNombre, g.grp_nombre AS grupoNombre, an.anl_anio AS anio,
+                   a.ale_grupo AS grupo,
                    coalesce(rp.per_nombres || ' ' || rp.per_apellidos, re.est_nombres || ' ' || re.est_apellidos) AS reportadaPor,
                    ps.per_nombres || ' ' || ps.per_apellidos AS psicorientador,
                    a.ale_conclusion AS conclusion, a.ale_creado_en AS creadoEn, a.ale_completada_en AS completadaEn
             FROM alertas a
             JOIN categorias_alerta c ON c.cat_id = a.ale_cat_id
-            JOIN grupos g ON g.grp_id = a.ale_grp_id
-            JOIN grados gr ON gr.gra_id = g.grp_gra_id
-            JOIN anios_lectivos an ON an.anl_id = a.ale_anl_id
             LEFT JOIN personal rp ON rp.per_usu_id = a.ale_reportada_por
             LEFT JOIN estudiantes re ON re.est_usu_id = a.ale_reportada_por
             LEFT JOIN personal ps ON ps.per_id = a.ale_psi_id

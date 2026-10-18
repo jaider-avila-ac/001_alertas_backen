@@ -5,12 +5,8 @@ import com.alertas.estudiante.dto.EstudianteDetalleResponse;
 import com.alertas.estudiante.dto.EstudianteFilaResponse;
 import com.alertas.estudiante.dto.EstudianteRequest;
 import com.alertas.estudiante.dto.FamiliaresRequest;
-import com.alertas.estudiante.dto.InactivarSinGrupoRequest;
 import com.alertas.estudiante.dto.QrResponse;
-import com.alertas.estudiante.dto.TotalResponse;
 import com.alertas.estudiante.service.EstudianteService;
-import com.alertas.matricula.dto.RetirarRequest;
-import com.alertas.matricula.dto.UbicarRequest;
 import com.alertas.shared.dto.CambiarActivoRequest;
 import com.alertas.shared.dto.PageResponse;
 import com.alertas.shared.idempotencia.Idempotente;
@@ -41,15 +37,15 @@ public class EstudianteController {
         this.estudianteService = estudianteService;
     }
 
-    // el docente tambien busca estudiantes (para crear alertas). estado: activos, inactivos o todos
+    // el docente tambien busca estudiantes (para crear alertas). estado: activos, inactivos o todos.
+    // edad: clave del rango (HASTA_8, DE_9_A_11, ..., SIN_FECHA)
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'PSICORIENTADOR', 'DOCENTE')")
     public PageResponse<EstudianteFilaResponse> listar(
             @RequestParam(required = false) String texto,
-            @RequestParam(required = false) Long gradoId,
-            @RequestParam(required = false) Long grupoId,
+            @RequestParam(required = false) String grupo,
+            @RequestParam(required = false) String edad,
             @RequestParam(defaultValue = "activos") String estado,
-            @RequestParam(defaultValue = "false") boolean sinGrupo,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamanio) {
 
@@ -61,7 +57,14 @@ public class EstudianteController {
             activo = false;
         }
 
-        return estudianteService.listar(texto, gradoId, grupoId, activo, sinGrupo, pagina, tamanio);
+        return estudianteService.listar(texto, grupo, edad, activo, pagina, tamanio);
+    }
+
+    // los grupos que se han escrito, para los filtros
+    @GetMapping("/grupos")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PSICORIENTADOR', 'DOCENTE')")
+    public List<String> grupos() {
+        return estudianteService.grupos();
     }
 
     // el detalle tiene datos de la familia, el docente no lo ve
@@ -83,19 +86,6 @@ public class EstudianteController {
     @PreAuthorize("hasRole('ADMIN')")
     public EstudianteDetalleResponse actualizar(@PathVariable String codigo, @Valid @RequestBody EstudianteRequest request) {
         return estudianteService.actualizar(codigo, request);
-    }
-
-    // matricular o cambiar de grupo (tambien de grado). queda el movimiento en su trayectoria
-    @PatchMapping("/{codigo}/grupo")
-    @PreAuthorize("hasRole('ADMIN')")
-    public EstudianteDetalleResponse cambiarGrupo(@PathVariable String codigo, @Valid @RequestBody UbicarRequest request) {
-        return estudianteService.cambiarGrupo(codigo, request.grupoId(), request.motivo());
-    }
-
-    @PostMapping("/{codigo}/retirar")
-    @PreAuthorize("hasRole('ADMIN')")
-    public EstudianteDetalleResponse retirar(@PathVariable String codigo, @Valid @RequestBody RetirarRequest request) {
-        return estudianteService.retirar(codigo, request.motivo());
     }
 
     @PutMapping("/{codigo}/familiares")
@@ -138,20 +128,6 @@ public class EstudianteController {
         return new EstadoMasivoResponse(afectados);
     }
 
-    @GetMapping("/sin-grupo/total")
-    @PreAuthorize("hasRole('ADMIN')")
-    public TotalResponse contarSinGrupo(@RequestParam Long anioId) {
-        return new TotalResponse(estudianteService.contarSinGrupo(anioId));
-    }
-
-    @PostMapping("/sin-grupo/inactivar")
-    @PreAuthorize("hasRole('ADMIN')")
-    public EstadoMasivoResponse inactivarSinGrupo(@Valid @RequestBody InactivarSinGrupoRequest request) {
-
-        int afectados = estudianteService.inactivarSinGrupo(request.anioId());
-        return new EstadoMasivoResponse(afectados);
-    }
-
     // ---- qr ----
 
     @GetMapping("/{codigo}/qr")
@@ -168,8 +144,8 @@ public class EstudianteController {
 
     @GetMapping("/qr")
     @PreAuthorize("hasRole('ADMIN')")
-    public List<QrResponse> qrDelGrupo(@RequestParam Long grupoId) {
-        return estudianteService.qrDelGrupo(grupoId);
+    public List<QrResponse> qrDelGrupo(@RequestParam(required = false) String grupo) {
+        return estudianteService.qrDelGrupo(grupo);
     }
 
     // lo que pasa cuando el docente escanea el qr de un estudiante

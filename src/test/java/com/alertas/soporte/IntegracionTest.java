@@ -126,7 +126,7 @@ public abstract class IntegracionTest {
         return "Bearer " + jwtService.generar(usuarioId, institucionId, slug, rol);
     }
 
-    // colegio creado por la api del superadmin (con grados, anio activo, categorias y admin).
+    // colegio creado por la api del superadmin (con categorias y admin).
     // admin es el token del administrador listo para usar
     public record Colegio(Long id, String slug, String admin) {
     }

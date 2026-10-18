@@ -13,7 +13,6 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
-// grupoId solo se usa al crear (el cambio de grupo tiene su propio endpoint)
 @DocumentoValido
 public record EstudianteRequest(
 
@@ -65,5 +64,7 @@ public record EstudianteRequest(
         @ConLetras(message = "Las condiciones de salud deben tener letras")
         String condicionesSalud,
 
-        Long grupoId) implements ConDocumento {
+        @Size(max = 60, message = "El grupo es muy largo")
+        @TextoBasico(message = "El grupo tiene caracteres que no se permiten")
+        String grupo) implements ConDocumento {
 }

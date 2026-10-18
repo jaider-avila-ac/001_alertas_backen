@@ -55,36 +55,17 @@ class EstadisticaTest extends IntegracionTest {
         return token(usuario, colegio.id(), colegio.slug(), rol);
     }
 
-    private Long anioActivo(Colegio colegio) throws Exception {
-        for (JsonNode fila : leer(mvc.perform(get("/api/v1/anios-lectivos").header("Authorization", colegio.admin())).andReturn())) {
-            if (fila.get("anio").asInt() == LocalDate.now().getYear()) {
-                return fila.get("id").asLong();
-            }
-        }
-        throw new IllegalStateException("sin anio activo");
+    // el grupo es texto libre del estudiante
+    private String crearGrupo(String nombre) {
+        return "Sexto " + nombre;
     }
 
-    private Long crearGrupo(Colegio colegio, Long anio, String nombre) throws Exception {
-
-        Long grado = null;
-        for (JsonNode fila : leer(mvc.perform(get("/api/v1/grados").header("Authorization", colegio.admin())).andReturn())) {
-            if (fila.get("nombre").asText().equals("Sexto")) {
-                grado = fila.get("id").asLong();
-            }
-        }
-        return leer(mvc.perform(post("/api/v1/grupos").header("Authorization", colegio.admin())
-                        .header("Idempotency-Key", UUID.randomUUID().toString())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"anioId\":" + anio + ",\"gradoId\":" + grado + ",\"nombre\":\"" + nombre + "\"}"))
-                .andReturn()).get("id").asLong();
-    }
-
-    private String crearEstudiante(Colegio colegio, Long grupo, String documento, String genero, int edad) throws Exception {
+    private String crearEstudiante(Colegio colegio, String grupo, String documento, String genero, int edad) throws Exception {
 
         String nacimiento = LocalDate.now().minusYears(edad).minusDays(20).toString();
         String body = "{\"tipoDoc\":\"TI\",\"nroDoc\":\"" + documento + "\",\"nombres\":\"Estudiante\","
                 + "\"apellidos\":\"Prueba\",\"genero\":\"" + genero + "\",\"fechaNacimiento\":\"" + nacimiento + "\","
-                + "\"grupoId\":" + grupo + "}";
+                + "\"grupo\":\"" + grupo + "\"}";
         return leer(mvc.perform(post("/api/v1/estudiantes").header("Authorization", colegio.admin())
                         .header("Idempotency-Key", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -121,9 +102,9 @@ class EstadisticaTest extends IntegracionTest {
         Colegio colegio = crearColegioCompleto(mvc, mapper, "est-resumen", "71710000");
         String docente = crearPersonal(colegio, "7171002", Rol.DOCENTE);
         String psicorientador = crearPersonal(colegio, "7171003", Rol.PSICORIENTADOR);
-        Long anio = anioActivo(colegio);
-        Long grupoA = crearGrupo(colegio, anio, "A");
-        Long grupoB = crearGrupo(colegio, anio, "B");
+        int anio = LocalDate.now().getYear();
+        String grupoA = crearGrupo("A");
+        String grupoB = crearGrupo("B");
         String ana = crearEstudiante(colegio, grupoA, "7171011", "F", 13);
         String beto = crearEstudiante(colegio, grupoB, "7171012", "M", 16);
 
@@ -168,7 +149,7 @@ class EstadisticaTest extends IntegracionTest {
                         .content("{\"estudianteCodigo\":\"" + beto + "\",\"observacion\":\"Sin novedad\"}"))
                 .andExpect(status().isCreated());
 
-        JsonNode todo = estadisticas(colegio.admin(), "anioId=" + anio);
+        JsonNode todo = estadisticas(colegio.admin(), "anio=" + anio);
         JsonNode ind = todo.get("indicadores");
         assertThat(ind.get("alertas").asLong()).isEqualTo(4);
         assertThat(ind.get("pendientes").asLong()).isEqualTo(2);
@@ -193,7 +174,7 @@ class EstadisticaTest extends IntegracionTest {
         assertThat(total(todo.get("porEdad"), "DE_12_A_14")).isEqualTo(2);
         assertThat(total(todo.get("porEdad"), "DE_15_A_17")).isEqualTo(2);
         assertThat(total(todo.get("porEdad"), "HASTA_8")).isZero();
-        assertThat(total(todo.get("porEdad"), "N")).isEqualTo(-1);
+        assertThat(total(todo.get("porEdad"), "SIN_FECHA")).isEqualTo(-1);
         assertThat(total(todo.get("porOrigen"), "DOCENTE")).isEqualTo(3);
         assertThat(total(todo.get("porOrigen"), "ESTUDIANTE")).isEqualTo(1);
         assertThat(total(todo.get("porGrupo"), "Sexto A")).isEqualTo(2);
@@ -203,7 +184,9 @@ class EstadisticaTest extends IntegracionTest {
         assertThat(todo.get("porPsicorientador").get(0).get("atendidas").asLong()).isEqualTo(2);
 
         // filtros
-        assertThat(estadisticas(colegio.admin(), "grupoId=" + grupoA).get("indicadores").get("alertas").asLong()).isEqualTo(2);
+        assertThat(estadisticas(colegio.admin(), "grupo=" + grupoA).get("indicadores").get("alertas").asLong()).isEqualTo(2);
+        // por rango de edad: ana tiene 13
+        assertThat(estadisticas(colegio.admin(), "edad=DE_12_A_14").get("indicadores").get("alertas").asLong()).isEqualTo(2);
         assertThat(estadisticas(colegio.admin(), "categoriaId=" + cat1).get("indicadores").get("alertas").asLong()).isEqualTo(2);
         String manana = LocalDate.now().plusDays(1).toString();
         assertThat(estadisticas(colegio.admin(), "desde=" + manana).get("indicadores").get("alertas").asLong()).isZero();
@@ -211,30 +194,24 @@ class EstadisticaTest extends IntegracionTest {
         mvc.perform(get("/api/v1/estadisticas?desde=" + manana + "&hasta=" + LocalDate.now()).header("Authorization", colegio.admin()))
                 .andExpect(status().isBadRequest());
 
-        // una sola peticion trae tambien lo de los filtros; sin anio se usa el activo
+        // una sola peticion trae tambien lo de los filtros; sin anio se ven todos
         JsonNode sinAnio = estadisticas(colegio.admin(), "");
-        assertThat(sinAnio.get("anioId").asLong()).isEqualTo(anio);
+        assertThat(sinAnio.get("anio").isNull()).isTrue();
         assertThat(sinAnio.get("indicadores").get("alertas").asLong()).isEqualTo(4);
         assertThat(sinAnio.get("filtros").get("grupos")).hasSize(2);
         assertThat(sinAnio.get("filtros").get("categorias").size()).isGreaterThanOrEqualTo(2);
-        assertThat(sinAnio.get("filtros").get("grados").size()).isGreaterThan(5);
-        boolean hayActivo = false;
-        for (JsonNode opcion : sinAnio.get("filtros").get("anios")) {
-            if (opcion.get("activo").asBoolean()) {
-                hayActivo = true;
-            }
-        }
-        assertThat(hayActivo).isTrue();
-        assertThat(estadisticas(colegio.admin(), "todos=true").get("anioId").isNull()).isTrue();
+        assertThat(sinAnio.get("filtros").get("edades")).hasSize(7);
+        assertThat(sinAnio.get("filtros").get("anios").get(0).asInt()).isEqualTo(anio);
+        assertThat(estadisticas(colegio.admin(), "anio=" + (anio - 1)).get("indicadores").get("alertas").asLong()).isZero();
 
         // maximo 3 consultas a la base por peticion (la del colegio para RLS y dos de datos)
-        String conGrado = "gradoId=" + sinAnio.get("filtros").get("grados").get(0).get("id").asLong();
+        String conGrupo = "grupo=" + grupoA;
         esperarNotificaciones();
         esperarNotificaciones();
         Statistics conteo = sessionFactory.unwrap(SessionFactory.class).getStatistics();
         conteo.setStatisticsEnabled(true);
         conteo.clear();
-        estadisticas(colegio.admin(), conGrado);
+        estadisticas(colegio.admin(), conGrupo);
         long consultas = conteo.getPrepareStatementCount();
         conteo.setStatisticsEnabled(false);
         assertThat(consultas).isLessThanOrEqualTo(3);
@@ -248,7 +225,7 @@ class EstadisticaTest extends IntegracionTest {
         assertThat(estadisticas(otro.admin(), "").get("indicadores").get("alertas").asLong()).isZero();
 
         // excel con el resumen y una hoja por grafico
-        byte[] excel = mvc.perform(get("/api/v1/estadisticas/excel?anioId=" + anio).header("Authorization", colegio.admin()))
+        byte[] excel = mvc.perform(get("/api/v1/estadisticas/excel?anio=" + anio).header("Authorization", colegio.admin()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
         try (Workbook libro = new XSSFWorkbook(new ByteArrayInputStream(excel))) {
             assertThat(libro.getNumberOfSheets()).isEqualTo(9);

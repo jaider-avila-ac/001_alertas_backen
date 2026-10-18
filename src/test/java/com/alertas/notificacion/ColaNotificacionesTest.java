@@ -58,28 +58,12 @@ class ColaNotificacionesTest extends IntegracionTest {
 
     private String crearEstudiante(Colegio colegio, String documento) throws Exception {
 
-        Long anio = null;
-        for (JsonNode fila : leer(mvc.perform(get("/api/v1/anios-lectivos").header("Authorization", colegio.admin())).andReturn())) {
-            if (fila.get("anio").asInt() == LocalDate.now().getYear()) {
-                anio = fila.get("id").asLong();
-            }
-        }
-        Long grado = null;
-        for (JsonNode fila : leer(mvc.perform(get("/api/v1/grados").header("Authorization", colegio.admin())).andReturn())) {
-            if (fila.get("nombre").asText().equals("Sexto")) {
-                grado = fila.get("id").asLong();
-            }
-        }
-        Long grupo = leer(mvc.perform(post("/api/v1/grupos").header("Authorization", colegio.admin())
-                        .header("Idempotency-Key", UUID.randomUUID().toString())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"anioId\":" + anio + ",\"gradoId\":" + grado + ",\"nombre\":\"A\"}"))
-                .andReturn()).get("id").asLong();
+        String grupo = "Sexto A";
         return leer(mvc.perform(post("/api/v1/estudiantes").header("Authorization", colegio.admin())
                         .header("Idempotency-Key", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"tipoDoc\":\"TI\",\"nroDoc\":\"" + documento + "\",\"nombres\":\"Ana\","
-                                + "\"apellidos\":\"Rios\",\"grupoId\":" + grupo + "}"))
+                                + "\"apellidos\":\"Rios\",\"grupo\":\"" + grupo + "\"}"))
                 .andExpect(status().isCreated()).andReturn()).get("codigo").asText();
     }
 

@@ -2,14 +2,13 @@ package com.alertas.estadistica.dto;
 
 import java.time.LocalDate;
 
-// todo opcional: null = sin ese filtro. desde y hasta incluyen el dia.
-// anioId null = el anio activo; todosLosAnios = sin filtro de anio
+// todo opcional: null = sin ese filtro. anio es el del calendario. desde y hasta incluyen el dia.
+// grupo es el texto libre; edad es la clave de RangoEdad
 public record FiltroEstadistica(
-        Long anioId,
-        boolean todosLosAnios,
+        Integer anio,
         LocalDate desde,
         LocalDate hasta,
-        Long gradoId,
-        Long grupoId,
+        String grupo,
+        String edad,
         Long categoriaId) {
 }

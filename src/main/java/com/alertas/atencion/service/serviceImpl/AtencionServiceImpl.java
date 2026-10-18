@@ -20,14 +20,13 @@ import com.alertas.cita.dto.CitaResponse;
 import com.alertas.cita.service.CitaService;
 import com.alertas.estudiante.dto.EstudianteBasico;
 import com.alertas.estudiante.service.EstudianteService;
-import com.alertas.matricula.dto.MatriculaResponse;
-import com.alertas.matricula.service.MatriculaService;
 import com.alertas.notificacion.service.NotificacionService;
 import com.alertas.personal.dto.PsicorientadorBasico;
 import com.alertas.personal.service.PersonalService;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.PageResponse;
 import com.alertas.shared.exception.ApiException;
+import com.alertas.shared.validacion.Formato;
 import com.alertas.valoracion.service.ValoracionService;
 import jakarta.persistence.EntityManager;
 import java.sql.Timestamp;
@@ -50,7 +49,6 @@ public class AtencionServiceImpl implements AtencionService {
 
     private final AlertaRepository alertaRepository;
     private final EstudianteService estudianteService;
-    private final MatriculaService matriculaService;
     private final PersonalService personalService;
     private final CitaService citaService;
     private final BitacoraService bitacoraService;
@@ -61,7 +59,6 @@ public class AtencionServiceImpl implements AtencionService {
     public AtencionServiceImpl(
             AlertaRepository alertaRepository,
             EstudianteService estudianteService,
-            MatriculaService matriculaService,
             PersonalService personalService,
             CitaService citaService,
             BitacoraService bitacoraService,
@@ -71,7 +68,6 @@ public class AtencionServiceImpl implements AtencionService {
 
         this.alertaRepository = alertaRepository;
         this.estudianteService = estudianteService;
-        this.matriculaService = matriculaService;
         this.personalService = personalService;
         this.citaService = citaService;
         this.bitacoraService = bitacoraService;
@@ -97,8 +93,7 @@ public class AtencionServiceImpl implements AtencionService {
                     fila.getCodigo(),
                     fila.getNombres(),
                     fila.getApellidos(),
-                    fila.getGradoNombre(),
-                    fila.getGrupoNombre(),
+                    fila.getGrupo(),
                     fila.getAlertas(),
                     nivelTexto(fila.getNivelMaximo()),
                     Boolean.TRUE.equals(fila.getPrioritaria()),
@@ -144,7 +139,7 @@ public class AtencionServiceImpl implements AtencionService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<EstudianteAtencionResponse> misEstudiantes(
-            String pestana, String nivel, Long categoriaId, Long gradoId, Long grupoId, int pagina, int tamanio) {
+            String pestana, String nivel, Long categoriaId, String grupo, int pagina, int tamanio) {
 
         TenantSupport.requireTenant(em);
 
@@ -155,7 +150,7 @@ public class AtencionServiceImpl implements AtencionService {
         PsicorientadorBasico yo = yo();
         PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0), limitarTamanio(tamanio));
         Page<EstudianteAtencionFila> page = alertaRepository.misEstudiantes(
-                yo.id(), pestana, nivel, categoriaId, gradoId, grupoId, pageRequest);
+                yo.id(), pestana, nivel, categoriaId, Formato.espacios(grupo), pageRequest);
 
         List<EstudianteAtencionResponse> contenido = new ArrayList<>();
         for (EstudianteAtencionFila fila : page.getContent()) {
@@ -163,8 +158,7 @@ public class AtencionServiceImpl implements AtencionService {
                     fila.getCodigo(),
                     fila.getNombres(),
                     fila.getApellidos(),
-                    fila.getGradoNombre(),
-                    fila.getGrupoNombre(),
+                    fila.getGrupo(),
                     fila.getActivas(),
                     nivelTexto(fila.getNivelMaximo()),
                     Boolean.TRUE.equals(fila.getPrioritaria()),
@@ -345,16 +339,6 @@ public class AtencionServiceImpl implements AtencionService {
             yo = personalService.psicorientadorDeUsuario(UsuarioAutenticado.actual().id());
         }
 
-        // grado y grupo del anio activo
-        String grado = null;
-        String grupo = null;
-        for (MatriculaResponse matricula : matriculaService.trayectoria(estudiante.id())) {
-            if (matricula.anioActivo()) {
-                grado = matricula.gradoNombre();
-                grupo = matricula.grupoNombre();
-            }
-        }
-
         // lo escrito en cada cita, por alerta. confidencial: solo psicorientadores
         List<Object[]> seguimientos = new ArrayList<>();
         if (conObservaciones) {
@@ -409,8 +393,7 @@ public class AtencionServiceImpl implements AtencionService {
                 estudiante.codigo(),
                 estudiante.nombres(),
                 estudiante.apellidos(),
-                grado,
-                grupo,
+                estudiante.grupo(),
                 estudiante.activo(),
                 psicorientador,
                 esMio,

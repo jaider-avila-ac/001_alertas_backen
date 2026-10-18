@@ -9,11 +9,11 @@ public interface ImportacionEstudiantesService {
 
     byte[] plantilla();
 
-    // anioId null = el anio activo. para promover al anio siguiente se manda ese anio
-    VistaPreviaImportacionResponse vistaPrevia(InputStream archivo, Long anioId);
+    // inactivarAusentes: al confirmar, los activos que no vienen en el archivo quedan inactivos
+    VistaPreviaImportacionResponse vistaPrevia(InputStream archivo, boolean inactivarAusentes);
 
     ResultadoImportacionResponse confirmar(String token);
 
     // mismos filtros del listado
-    byte[] exportar(String texto, Long gradoId, Long grupoId, Boolean activo);
+    byte[] exportar(String texto, String grupo, String edad, Boolean activo);
 }

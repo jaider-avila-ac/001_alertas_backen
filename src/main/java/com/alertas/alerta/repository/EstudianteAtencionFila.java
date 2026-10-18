@@ -11,9 +11,7 @@ public interface EstudianteAtencionFila {
 
     String getApellidos();
 
-    String getGradoNombre();
-
-    String getGrupoNombre();
+    String getGrupo();
 
     Long getActivas();
 

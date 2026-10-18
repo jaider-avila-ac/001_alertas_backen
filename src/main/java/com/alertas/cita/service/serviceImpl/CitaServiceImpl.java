@@ -16,8 +16,6 @@ import com.alertas.cita.repository.CitaRepository;
 import com.alertas.cita.service.CitaService;
 import com.alertas.estudiante.dto.EstudianteBasico;
 import com.alertas.estudiante.service.EstudianteService;
-import com.alertas.matricula.model.Matricula;
-import com.alertas.matricula.service.MatriculaService;
 import com.alertas.personal.dto.PsicorientadorBasico;
 import com.alertas.personal.service.PersonalService;
 import com.alertas.notificacion.service.NotificacionService;
@@ -26,6 +24,7 @@ import com.alertas.shared.Fechas;
 import com.alertas.sms.service.SmsService;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.exception.ApiException;
+import com.alertas.shared.interceptor.TenantContext;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -48,7 +47,6 @@ public class CitaServiceImpl implements CitaService {
     private final CitaRepository repository;
     private final AlertaRepository alertaRepository;
     private final EstudianteService estudianteService;
-    private final MatriculaService matriculaService;
     private final PersonalService personalService;
     private final NotificacionService notificacionService;
     private final SmsService smsService;
@@ -58,7 +56,6 @@ public class CitaServiceImpl implements CitaService {
             CitaRepository repository,
             AlertaRepository alertaRepository,
             EstudianteService estudianteService,
-            MatriculaService matriculaService,
             PersonalService personalService,
             NotificacionService notificacionService,
             SmsService smsService,
@@ -67,7 +64,6 @@ public class CitaServiceImpl implements CitaService {
         this.repository = repository;
         this.alertaRepository = alertaRepository;
         this.estudianteService = estudianteService;
-        this.matriculaService = matriculaService;
         this.personalService = personalService;
         this.notificacionService = notificacionService;
         this.smsService = smsService;
@@ -87,11 +83,6 @@ public class CitaServiceImpl implements CitaService {
 
         if (!estudiante.activo()) {
             throw ApiException.conflicto("El estudiante esta inactivo");
-        }
-
-        Matricula matricula = matriculaService.delAnioActivo(estudiante.id());
-        if (matricula == null || Matricula.RETIRADA.equals(matricula.getEstado())) {
-            throw ApiException.conflicto("El estudiante no tiene matricula en el año activo");
         }
 
         Cita programada = repository.findByEstudianteIdAndEstado(estudiante.id(), Cita.PROGRAMADA);
@@ -125,12 +116,10 @@ public class CitaServiceImpl implements CitaService {
         }
 
         Cita cita = new Cita();
-        cita.setInstitucionId(matricula.getInstitucionId());
+        cita.setInstitucionId(TenantContext.getInstitucionId());
         cita.setCodigo(CodigoAleatorio.generar());
         cita.setEstudianteId(estudiante.id());
         cita.setPsicorientadorId(yo.id());
-        cita.setMatriculaId(matricula.getId());
-        cita.setGrupoId(matricula.getGrupoId());
         cita.setCreadaPor(UsuarioAutenticado.actual().id());
         copiarHorario(cita, request.inicio(), request.duracionMinutos(), request.modalidad(), request.lugar(), request.indicacion());
         guardarSinCruces(cita);
@@ -484,8 +473,7 @@ public class CitaServiceImpl implements CitaService {
                 (String) nombres[1],
                 (String) nombres[2],
                 (String) nombres[3],
-                (String) nombres[4],
-                nombres[5] + " " + nombres[6],
+                nombres[4] + " " + nombres[5],
                 cita.getIniciadaEn(),
                 cita.isEnCurso(),
                 alertas);

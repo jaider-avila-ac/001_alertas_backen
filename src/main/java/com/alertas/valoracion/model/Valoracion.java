@@ -34,9 +34,6 @@ public class Valoracion {
     @Column(name = "val_est_id", nullable = false, updatable = false)
     private Long estudianteId;
 
-    @Column(name = "val_mat_id", nullable = false, updatable = false)
-    private Long matriculaId;
-
     @Column(name = "val_psi_id", nullable = false, updatable = false)
     private Long psicorientadorId;
 

@@ -32,11 +32,7 @@ public interface AlertaExpedienteFila {
 
     Boolean getAutorizaSmsFamiliares();
 
-    String getGradoNombre();
-
-    String getGrupoNombre();
-
-    Integer getAnio();
+    String getGrupo();
 
     String getReportadaPor();
 

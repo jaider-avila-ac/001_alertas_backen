@@ -1,4 +1,5 @@
 package com.alertas.estudiante.dto;
 
-public record ResultadoImportacionResponse(int creados, int actualizados, int gruposCreados) {
+// inactivados: los que no venian en el archivo (solo si se pidio)
+public record ResultadoImportacionResponse(int creados, int actualizados, int inactivados) {
 }

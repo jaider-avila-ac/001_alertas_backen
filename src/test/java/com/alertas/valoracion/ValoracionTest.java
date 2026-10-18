@@ -57,31 +57,15 @@ class ValoracionTest extends IntegracionTest {
         return token(usuario, colegio.id(), colegio.slug(), rol);
     }
 
-    private Long crearGrupo(Colegio colegio) throws Exception {
-
-        Long anio = null;
-        for (JsonNode fila : leer(mvc.perform(get("/api/v1/anios-lectivos").header("Authorization", colegio.admin())).andReturn())) {
-            if (fila.get("anio").asInt() == LocalDate.now().getYear()) {
-                anio = fila.get("id").asLong();
-            }
-        }
-        Long grado = null;
-        for (JsonNode fila : leer(mvc.perform(get("/api/v1/grados").header("Authorization", colegio.admin())).andReturn())) {
-            if (fila.get("nombre").asText().equals("Sexto")) {
-                grado = fila.get("id").asLong();
-            }
-        }
-        return leer(mvc.perform(post("/api/v1/grupos").header("Authorization", colegio.admin())
-                        .header("Idempotency-Key", UUID.randomUUID().toString())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"anioId\":" + anio + ",\"gradoId\":" + grado + ",\"nombre\":\"A\"}"))
-                .andReturn()).get("id").asLong();
+    // el grupo es texto libre del estudiante
+    private String crearGrupo(Colegio colegio) {
+        return "Sexto A";
     }
 
-    private String crearEstudiante(Colegio colegio, Long grupo, String documento, String nombre) throws Exception {
+    private String crearEstudiante(Colegio colegio, String grupo, String documento, String nombre) throws Exception {
 
         String body = "{\"tipoDoc\":\"TI\",\"nroDoc\":\"" + documento + "\",\"nombres\":\"" + nombre + "\","
-                + "\"apellidos\":\"Prueba\",\"grupoId\":" + grupo + "}";
+                + "\"apellidos\":\"Prueba\",\"grupo\":\"" + grupo + "\"}";
         return leer(mvc.perform(post("/api/v1/estudiantes").header("Authorization", colegio.admin())
                         .header("Idempotency-Key", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -153,7 +137,7 @@ class ValoracionTest extends IntegracionTest {
         Colegio colegio = crearColegioCompleto(mvc, mapper, "val-lista", "62620000");
         String psicorientador = crearPersonal(colegio, "6262003", Rol.PSICORIENTADOR);
         String otro = crearPersonal(colegio, "6262004", Rol.PSICORIENTADOR);
-        Long grupo = crearGrupo(colegio);
+        String grupo = crearGrupo(colegio);
         String ana = crearEstudiante(colegio, grupo, "6262001", "Ana");
         String beto = crearEstudiante(colegio, grupo, "6262002", "Beto");
         configurar(colegio, true, 30);
@@ -223,7 +207,6 @@ class ValoracionTest extends IntegracionTest {
         assertThat(expediente.get("alertas")).isEmpty();
         assertThat(expediente.get("valoraciones")).hasSize(1);
         assertThat(expediente.get("valoraciones").get(0).get("observacion").asText()).startsWith("Se nota decaida");
-        assertThat(expediente.get("valoraciones").get(0).get("gradoNombre").asText()).isEqualTo("Sexto");
 
         // el admin ve que hubo valoracion, pero no lo que se escribio
         JsonNode delAdmin = leer(mvc.perform(get("/api/v1/atencion/estudiantes/" + estudiante)

@@ -2,9 +2,6 @@ package com.alertas.estudiante.service.serviceImpl;
 
 import com.alertas.auth.model.Rol;
 import com.alertas.bitacora.service.BitacoraService;
-import com.alertas.estructura.dto.AnioLectivoResponse;
-import com.alertas.estructura.dto.GrupoResponse;
-import com.alertas.estructura.service.EstructuraService;
 import com.alertas.estudiante.dto.EstadoMasivoEstudiantesRequest;
 import com.alertas.estudiante.dto.EstudianteBasico;
 import com.alertas.estudiante.dto.EstudianteDetalleResponse;
@@ -20,9 +17,8 @@ import com.alertas.estudiante.repository.EstudianteRepository;
 import com.alertas.estudiante.repository.FamiliarRepository;
 import com.alertas.estudiante.service.EstudianteService;
 import com.alertas.estudiante.service.FechaNacimiento;
-import com.alertas.matricula.dto.MatriculaResponse;
-import com.alertas.matricula.service.MatriculaService;
 import com.alertas.shared.CodigoAleatorio;
+import com.alertas.shared.RangoEdad;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.NombrePersona;
 import com.alertas.shared.dto.PageResponse;
@@ -47,29 +43,23 @@ public class EstudianteServiceImpl implements EstudianteService {
     private static final int TAMANIO_MAXIMO = 50;
 
     private final EstudianteRepository repository;
-    private final MatriculaService matriculaService;
     private final FamiliarRepository familiarRepository;
     private final UsuarioService usuarioService;
-    private final EstructuraService estructuraService;
     private final BitacoraService bitacoraService;
     private final EntityManager em;
     private final String urlFront;
 
     public EstudianteServiceImpl(
             EstudianteRepository repository,
-            MatriculaService matriculaService,
             FamiliarRepository familiarRepository,
             UsuarioService usuarioService,
-            EstructuraService estructuraService,
             BitacoraService bitacoraService,
             EntityManager em,
             @Value("${app.url-front}") String urlFront) {
 
         this.repository = repository;
-        this.matriculaService = matriculaService;
         this.familiarRepository = familiarRepository;
         this.usuarioService = usuarioService;
-        this.estructuraService = estructuraService;
         this.bitacoraService = bitacoraService;
         this.em = em;
         this.urlFront = urlFront;
@@ -80,11 +70,10 @@ public class EstudianteServiceImpl implements EstudianteService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<EstudianteFilaResponse> listar(
-            String texto, Long gradoId, Long grupoId, Boolean activo, boolean sinGrupo, int pagina, int tamanio) {
+            String texto, String grupo, String edad, Boolean activo, int pagina, int tamanio) {
 
         TenantSupport.requireTenant(em);
 
-        Long anioId = idAnioActivo();
         String busqueda = null;
 
         if (texto != null && !texto.isBlank()) {
@@ -92,7 +81,7 @@ public class EstudianteServiceImpl implements EstudianteService {
         }
 
         PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0), limitarTamanio(tamanio));
-        Page<EstudianteFila> page = repository.buscar(anioId, busqueda, gradoId, grupoId, activo, sinGrupo, pageRequest);
+        Page<EstudianteFila> page = repository.buscar(busqueda, Formato.espacios(grupo), RangoEdad.validar(edad), activo, pageRequest);
 
         List<EstudianteFilaResponse> contenido = new ArrayList<>();
 
@@ -101,6 +90,14 @@ public class EstudianteServiceImpl implements EstudianteService {
         }
 
         return PageResponse.de(contenido, page);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> grupos() {
+
+        TenantSupport.requireTenant(em);
+        return repository.grupos();
     }
 
     @Override
@@ -119,13 +116,6 @@ public class EstudianteServiceImpl implements EstudianteService {
 
         Long institucionId = TenantSupport.requireTenant(em);
 
-        if (request.grupoId() == null) {
-            throw ApiException.invalido("Selecciona el grupo del estudiante");
-        }
-
-        GrupoResponse grupo = estructuraService.buscarGrupo(request.grupoId());
-        estructuraService.buscarAnioEditable(grupo.anioId());
-
         String documento = Formato.documento(request.nroDoc());
 
         if (repository.existsByNroDoc(documento)) {
@@ -142,8 +132,6 @@ public class EstudianteServiceImpl implements EstudianteService {
         estudiante.setCodigoQr(CodigoAleatorio.generar());
         copiarDatos(request, estudiante);
         repository.save(estudiante);
-
-        matriculaService.ubicar(estudiante.getId(), grupo, null);
 
         return armarDetalle(estudiante);
     }
@@ -165,45 +153,6 @@ public class EstudianteServiceImpl implements EstudianteService {
         }
 
         copiarDatos(request, estudiante);
-        return armarDetalle(estudiante);
-    }
-
-    @Override
-    @Transactional
-    public EstudianteDetalleResponse cambiarGrupo(String codigo, Long grupoId, String motivo) {
-
-        TenantSupport.requireTenant(em);
-
-        Estudiante estudiante = obtener(codigo);
-        GrupoResponse grupo = estructuraService.buscarGrupo(grupoId);
-
-        boolean volvio = matriculaService.ubicar(estudiante.getId(), grupo, motivo);
-
-        // estaba retirado: vuelve a poder entrar
-        if (volvio && !estudiante.getUsuario().isActivo()) {
-            usuarioService.cambiarEstadoPorAdmin(estudiante.getUsuario().getId(), true);
-            bitacoraService.registrar("REINGRESO", "estudiante", estudiante.getId(), vacioANull(motivo));
-        }
-
-        return armarDetalle(estudiante);
-    }
-
-    @Override
-    @Transactional
-    public EstudianteDetalleResponse retirar(String codigo, String motivo) {
-
-        TenantSupport.requireTenant(em);
-
-        Estudiante estudiante = obtener(codigo);
-        int cerradas = matriculaService.retirar(estudiante.getId(), motivo);
-
-        if (cerradas == 0) {
-            throw ApiException.conflicto("El estudiante no tiene una matricula activa");
-        }
-
-        usuarioService.cambiarEstadoPorAdmin(estudiante.getUsuario().getId(), false);
-        bitacoraService.registrar("RETIRO", "estudiante", estudiante.getId(), motivo.trim());
-
         return armarDetalle(estudiante);
     }
 
@@ -307,13 +256,12 @@ public class EstudianteServiceImpl implements EstudianteService {
 
         if (request.codigos() != null && !request.codigos().isEmpty()) {
             usuarioIds = repository.usuarioIdsPorCodigos(request.codigos());
-        } else if (request.grupoId() != null) {
-            estructuraService.buscarGrupo(request.grupoId());
-            usuarioIds = repository.usuarioIdsPorGrupo(request.grupoId());
-        } else if (request.gradoId() != null) {
-            usuarioIds = repository.usuarioIdsPorGrado(idAnioActivo(), request.gradoId());
+        } else if (!vacio(request.grupo())) {
+            usuarioIds = repository.usuarioIdsPorGrupo(Formato.espacios(request.grupo()));
+        } else if (RangoEdad.validar(request.edad()) != null) {
+            usuarioIds = repository.usuarioIdsPorEdad(request.edad());
         } else {
-            throw ApiException.invalido("Selecciona estudiantes, un grupo, un grado o todos");
+            throw ApiException.invalido("Selecciona estudiantes, un grupo, un rango de edad o todos");
         }
 
         if (usuarioIds.isEmpty()) {
@@ -321,41 +269,6 @@ public class EstudianteServiceImpl implements EstudianteService {
         }
 
         return usuarioService.cambiarEstadoMasivo(null, usuarioIds, activo);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public long contarSinGrupo(Long anioId) {
-
-        TenantSupport.requireTenant(em);
-        estructuraService.buscarAnioEditable(anioId);
-
-        return repository.sinMatricula(anioId).size();
-    }
-
-    @Override
-    @Transactional
-    public int inactivarSinGrupo(Long anioId) {
-
-        TenantSupport.requireTenant(em);
-        AnioLectivoResponse anio = estructuraService.buscarAnioEditable(anioId);
-
-        List<Long> estudianteIds = new ArrayList<>();
-        List<Long> usuarioIds = new ArrayList<>();
-
-        for (Object[] fila : repository.sinMatricula(anioId)) {
-            estudianteIds.add(((Number) fila[0]).longValue());
-            usuarioIds.add(((Number) fila[1]).longValue());
-        }
-
-        if (usuarioIds.isEmpty()) {
-            return 0;
-        }
-
-        // la matricula que les quedo abierta del anio anterior se cierra; la de los graduados ya esta cerrada
-        matriculaService.cerrarActivas(estudianteIds, "No continuo en " + anio.anio());
-
-        return usuarioService.cambiarEstadoMasivo(null, usuarioIds, false);
     }
 
     // ---------------------------------------------------------------- qr
@@ -383,20 +296,14 @@ public class EstudianteServiceImpl implements EstudianteService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<QrResponse> qrDelGrupo(Long grupoId) {
+    public List<QrResponse> qrDelGrupo(String grupo) {
 
         TenantSupport.requireTenant(em);
 
-        GrupoResponse grupo = estructuraService.buscarGrupo(grupoId);
         List<QrResponse> respuesta = new ArrayList<>();
 
-        for (Estudiante estudiante : repository.buscarPorGrupo(grupoId)) {
-            respuesta.add(new QrResponse(
-                    estudiante.getNombres(),
-                    estudiante.getApellidos(),
-                    grupo.gradoNombre(),
-                    grupo.nombre(),
-                    enlaceQr(estudiante)));
+        for (Estudiante estudiante : repository.activosDelGrupo(Formato.espacios(grupo))) {
+            respuesta.add(armarQr(estudiante));
         }
 
         return respuesta;
@@ -414,24 +321,15 @@ public class EstudianteServiceImpl implements EstudianteService {
             throw ApiException.noEncontrado("Este QR no es valido o fue reemplazado por uno nuevo");
         }
 
-        MatriculaResponse actual = matriculaActual(matriculaService.trayectoria(estudiante.getId()));
-        String grado = null;
-        String grupo = null;
-
-        if (actual != null) {
-            grado = actual.gradoNombre();
-            grupo = actual.grupoNombre();
-        }
-
-        return new EstudianteFilaResponse(
+return new EstudianteFilaResponse(
                 estudiante.getCodigo(),
                 estudiante.getTipoDoc(),
                 estudiante.getNroDoc(),
                 estudiante.getNombres(),
                 estudiante.getApellidos(),
                 estudiante.getUsuario().isActivo(),
-                grado,
-                grupo);
+                estudiante.getGrupo(),
+                estudiante.getFechaNacimiento());
     }
 
     // ---------------------------------------------------------------- para otros modulos
@@ -496,6 +394,7 @@ public class EstudianteServiceImpl implements EstudianteService {
                 estudiante.getCodigo(),
                 estudiante.getNombres(),
                 estudiante.getApellidos(),
+                estudiante.getGrupo(),
                 estudiante.getUsuario().isActivo(),
                 estudiante.getUsuario().getId());
     }
@@ -524,6 +423,7 @@ public class EstudianteServiceImpl implements EstudianteService {
         estudiante.setNroDoc(Formato.documento(request.nroDoc()));
         estudiante.setNombres(Formato.nombrePropio(request.nombres()));
         estudiante.setApellidos(Formato.nombrePropio(request.apellidos()));
+        estudiante.setGrupo(Formato.espacios(request.grupo()));
         estudiante.setGenero(vacioANull(request.genero()));
         estudiante.setFechaNacimiento(request.fechaNacimiento());
         estudiante.setCelular(Formato.telefono(request.celular()));
@@ -536,8 +436,6 @@ public class EstudianteServiceImpl implements EstudianteService {
     }
 
     private EstudianteDetalleResponse armarDetalle(Estudiante estudiante) {
-
-        List<MatriculaResponse> trayectoria = matriculaService.trayectoria(estudiante.getId());
 
         List<FamiliarResponse> familiares = new ArrayList<>();
 
@@ -553,6 +451,7 @@ public class EstudianteServiceImpl implements EstudianteService {
                 estudiante.getNroDoc(),
                 estudiante.getNombres(),
                 estudiante.getApellidos(),
+                estudiante.getGrupo(),
                 estudiante.getGenero(),
                 estudiante.getFechaNacimiento(),
                 estudiante.getCelular(),
@@ -565,51 +464,17 @@ public class EstudianteServiceImpl implements EstudianteService {
                 estudiante.isSmsFamiliares(),
                 usuario.isActivo(),
                 usuario.isDebeCambiarContrasena(),
-                matriculaActual(trayectoria),
-                trayectoria,
                 familiares);
-    }
-
-    // la del anio activo, null si no tiene
-    private MatriculaResponse matriculaActual(List<MatriculaResponse> trayectoria) {
-
-        for (MatriculaResponse matricula : trayectoria) {
-            if (matricula.anioActivo()) {
-                return matricula;
-            }
-        }
-
-        return null;
     }
 
     private QrResponse armarQr(Estudiante estudiante) {
 
-        MatriculaResponse actual = matriculaActual(matriculaService.trayectoria(estudiante.getId()));
-        String grado = null;
-        String grupo = null;
-
-        if (actual != null) {
-            grado = actual.gradoNombre();
-            grupo = actual.grupoNombre();
-        }
-
-        return new QrResponse(estudiante.getNombres(), estudiante.getApellidos(), grado, grupo, enlaceQr(estudiante));
+        return new QrResponse(estudiante.getNombres(), estudiante.getApellidos(), estudiante.getGrupo(), enlaceQr(estudiante));
     }
 
     // el qr solo lleva el enlace con el codigo del qr, ningun dato del estudiante
     private String enlaceQr(Estudiante estudiante) {
         return urlFront + "/" + TenantContext.getSlug() + "/q/" + estudiante.getCodigoQr();
-    }
-
-    private Long idAnioActivo() {
-
-        AnioLectivoResponse activo = estructuraService.anioActivo();
-
-        if (activo == null) {
-            return null;
-        }
-
-        return activo.id();
     }
 
     private int limitarTamanio(int tamanio) {

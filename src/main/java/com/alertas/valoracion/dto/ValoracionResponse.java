@@ -8,10 +8,7 @@ public record ValoracionResponse(
         String codigo,
         Instant fecha,
         String psicorientador,
-        String observacion,
-        String gradoNombre,
-        String grupoNombre,
-        Integer anio) {
+        String observacion) {
 
     public static ValoracionResponse desde(ValoracionFila fila, boolean conObservacion) {
 
@@ -24,9 +21,6 @@ public record ValoracionResponse(
                 fila.getCodigo(),
                 fila.getFecha(),
                 fila.getPsicorientador(),
-                observacion,
-                fila.getGradoNombre(),
-                fila.getGrupoNombre(),
-                fila.getAnio());
+                observacion);
     }
 }

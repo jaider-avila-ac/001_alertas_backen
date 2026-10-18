@@ -2,6 +2,7 @@ package com.alertas.alerta;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -39,49 +40,33 @@ class AlertaTest extends IntegracionTest {
         return leer(mvc.perform(get(ruta).header("Authorization", token)).andExpect(status().isOk()).andReturn());
     }
 
-    // colegio con Sexto A, un estudiante matriculado, un docente y la primera categoria
-    record Escenario(Colegio colegio, Long grupoId, String estudiante, String docente, Long categoriaId) {
+    // colegio con un estudiante de Sexto A, un docente y la primera categoria
+    record Escenario(Colegio colegio, String grupo, String estudiante, String docente, Long categoriaId) {
     }
 
     private Escenario escenario(String slug, String documentoAdmin) throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, slug, documentoAdmin);
-        Long grupo = crearGrupo(colegio, "Sexto", "A");
+        String grupo = crearGrupo(colegio, "Sexto", "A");
         String estudiante = crearEstudiante(colegio, documentoAdmin + "1", "Ana", grupo);
         String docente = crearPersonal(colegio, documentoAdmin + "2", Rol.DOCENTE);
         Long categoria = obtener("/api/v1/categorias", colegio.admin()).get(0).get("id").asLong();
         return new Escenario(colegio, grupo, estudiante, docente, categoria);
     }
 
-    private Long crearGrupo(Colegio colegio, String grado, String nombre) throws Exception {
-
-        Long anio = null;
-        for (JsonNode fila : obtener("/api/v1/anios-lectivos", colegio.admin())) {
-            if (fila.get("anio").asInt() == ESTE_ANIO) {
-                anio = fila.get("id").asLong();
-            }
-        }
-        Long gradoId = null;
-        for (JsonNode fila : obtener("/api/v1/grados", colegio.admin())) {
-            if (fila.get("nombre").asText().equals(grado)) {
-                gradoId = fila.get("id").asLong();
-            }
-        }
-        String body = "{\"anioId\":" + anio + ",\"gradoId\":" + gradoId + ",\"nombre\":\"" + nombre + "\"}";
-        return leer(mvc.perform(post("/api/v1/grupos").header("Authorization", colegio.admin())
-                        .header("Idempotency-Key", UUID.randomUUID().toString())
-                        .contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isCreated()).andReturn()).get("id").asLong();
+    // el grupo es texto libre del estudiante
+    private String crearGrupo(Colegio colegio, String grado, String nombre) {
+        return grado + " " + nombre;
     }
 
-    private String crearEstudiante(Colegio colegio, String documento, String nombres, Long grupoId) throws Exception {
+    private String crearEstudiante(Colegio colegio, String documento, String nombres, String grupo) throws Exception {
 
         Map<String, Object> datos = new HashMap<>();
         datos.put("tipoDoc", "TI");
         datos.put("nroDoc", documento);
         datos.put("nombres", nombres);
         datos.put("apellidos", "Prueba");
-        datos.put("grupoId", grupoId);
+        datos.put("grupo", grupo);
         return leer(mvc.perform(post("/api/v1/estudiantes").header("Authorization", colegio.admin())
                         .header("Idempotency-Key", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(datos)))
@@ -142,8 +127,7 @@ class AlertaTest extends IntegracionTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.estado").value("PENDIENTE"))
                 .andExpect(jsonPath("$.origen").value("DOCENTE"))
-                .andExpect(jsonPath("$.gradoNombre").value("Sexto"))
-                .andExpect(jsonPath("$.grupoNombre").value("A"))
+                .andExpect(jsonPath("$.grupo").value("Sexto A"))
                 .andExpect(jsonPath("$.prioritaria").value(false))
                 .andExpect(jsonPath("$.psicorientador").isEmpty())
                 .andExpect(jsonPath("$.id").doesNotExist())
@@ -155,18 +139,15 @@ class AlertaTest extends IntegracionTest {
         Integer total = OWNER.queryForObject("SELECT count(*) FROM alertas WHERE ale_ins_id = ?", Integer.class, e.colegio().id());
         assertThat(total).isEqualTo(1);
 
-        Long matricula = OWNER.queryForObject("SELECT ale_mat_id FROM alertas WHERE ale_ins_id = ?", Long.class, e.colegio().id());
-        assertThat(matricula).isNotNull();
+        // el grupo que tenia ese dia queda en la alerta aunque despues cambie
+        String grupo = OWNER.queryForObject("SELECT ale_grupo FROM alertas WHERE ale_ins_id = ?", String.class, e.colegio().id());
+        assertThat(grupo).isEqualTo("Sexto A");
 
         // critica o con peligro inmediato: prioritaria
         crear(e.docente(), alerta(e, "CRITICO")).andExpect(jsonPath("$.prioritaria").value(true));
         Map<String, Object> peligro = alerta(e, "MODERADO");
         peligro.put("peligroInmediato", true);
         crear(e.docente(), peligro).andExpect(jsonPath("$.prioritaria").value(true));
-
-        // el grupo cuenta sus alertas
-        JsonNode grupos = obtener("/api/v1/grupos", e.colegio().admin());
-        assertThat(grupos.get(0).get("totalAlertas").asLong()).isEqualTo(3);
     }
 
     @Test
@@ -189,9 +170,9 @@ class AlertaTest extends IntegracionTest {
         crear(e.docente(), alerta(e, "LEVE")).andExpect(status().isBadRequest());
         OWNER.update("UPDATE categorias_alerta SET cat_activa = true WHERE cat_id = ?", e.categoriaId());
 
-        // retirado: sin matricula activa
-        mvc.perform(post("/api/v1/estudiantes/" + e.estudiante() + "/retirar").header("Authorization", e.colegio().admin())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"motivo\":\"Se fue\"}"))
+        // inactivo (ya no esta en la institucion)
+        mvc.perform(patch("/api/v1/estudiantes/" + e.estudiante() + "/estado").header("Authorization", e.colegio().admin())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"activo\":false}"))
                 .andExpect(status().isOk());
         crear(e.docente(), alerta(e, "LEVE")).andExpect(status().isConflict());
 

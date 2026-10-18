@@ -121,17 +121,9 @@ class InstitucionSuperadminTest extends IntegracionTest {
         // el admin no puede cambiar su contrasena, asi que no se le obliga
         assertThat(creada.get("administrador").get("debeCambiarContrasena").asBoolean()).isFalse();
 
-        Integer grados = OWNER.queryForObject("SELECT count(*) FROM grados WHERE gra_ins_id = ?", Integer.class, id);
-        Integer gradosActivos = OWNER.queryForObject(
-                "SELECT count(*) FROM grados WHERE gra_ins_id = ? AND gra_activo", Integer.class, id);
-        Integer anio = OWNER.queryForObject(
-                "SELECT anl_anio FROM anios_lectivos WHERE anl_ins_id = ? AND anl_activo", Integer.class, id);
         Integer categorias = OWNER.queryForObject(
                 "SELECT count(*) FROM categorias_alerta WHERE cat_ins_id = ?", Integer.class, id);
 
-        assertThat(grados).isEqualTo(14);
-        assertThat(gradosActivos).isEqualTo(12);
-        assertThat(anio).isEqualTo(LocalDate.now().getYear());
         assertThat(categorias).isEqualTo(10);
 
         // usuario = documento y contrasena = documento, guardada con bcrypt

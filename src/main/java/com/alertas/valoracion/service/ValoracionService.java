@@ -11,9 +11,9 @@ public interface ValoracionService {
 
     ValoracionesConfigResponse configuracion();
 
-    // filtro: TODOS, POR_VALORAR o NUNCA. texto, grado y grupo pueden venir null
+    // filtro: TODOS, POR_VALORAR o NUNCA. texto, grupo y edad (clave de RangoEdad) pueden venir null
     PageResponse<EstudianteValoracionResponse> estudiantes(
-            String filtro, String texto, Long gradoId, Long grupoId, int pagina, int tamanio);
+            String filtro, String texto, String grupo, String edad, int pagina, int tamanio);
 
     ValoracionResponse registrar(RegistrarValoracionRequest request);
 

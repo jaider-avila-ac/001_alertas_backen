@@ -45,13 +45,6 @@ public class Cita {
     @Column(name = "cit_psi_id", nullable = false)
     private Long psicorientadorId;
 
-    // matricula y grupo del momento, igual que en la alerta
-    @Column(name = "cit_mat_id", nullable = false, updatable = false)
-    private Long matriculaId;
-
-    @Column(name = "cit_grp_id", nullable = false, updatable = false)
-    private Long grupoId;
-
     @Column(name = "cit_inicio", nullable = false)
     private OffsetDateTime inicio;
 

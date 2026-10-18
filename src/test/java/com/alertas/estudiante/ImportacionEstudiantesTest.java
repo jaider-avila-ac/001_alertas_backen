@@ -32,7 +32,7 @@ class ImportacionEstudiantesTest extends IntegracionTest {
 
     static final String[] ENCABEZADO = {
             "TIPO_DOC", "NUMERO_DOCUMENTO", "NOMBRES", "APELLIDOS", "GENERO", "FECHA_NACIMIENTO", "CELULAR",
-            "GRADO", "GRUPO", "FAMILIAR_NOMBRE", "FAMILIAR_PARENTESCO", "FAMILIAR_CELULAR"
+            "GRUPO", "FAMILIAR_NOMBRE", "FAMILIAR_PARENTESCO", "FAMILIAR_CELULAR"
     };
 
     @Autowired
@@ -67,10 +67,15 @@ class ImportacionEstudiantesTest extends IntegracionTest {
     }
 
     private ResultActions vistaPrevia(Colegio colegio, byte[] archivo) throws Exception {
+        return vistaPrevia(colegio, archivo, false);
+    }
+
+    private ResultActions vistaPrevia(Colegio colegio, byte[] archivo, boolean inactivarAusentes) throws Exception {
 
         MockMultipartFile parte = new MockMultipartFile("archivo", "estudiantes.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", archivo);
         return mvc.perform(multipart("/api/v1/estudiantes/importacion/vista-previa").file(parte)
+                .param("inactivarAusentes", String.valueOf(inactivarAusentes))
                 .header("Authorization", colegio.admin()));
     }
 
@@ -103,11 +108,11 @@ class ImportacionEstudiantesTest extends IntegracionTest {
         Colegio colegio = crearColegioCompleto(mvc, mapper, "imp-errores", "82820000");
 
         byte[] archivo = excel(
-                new String[] {"TI", "8001", "Ana", "Rios", "F", "25/03/2012", "", "6", "A", "", "", ""},
-                new String[] {"XX", "8002", "Luis", "Gil", "", "", "", "6", "A", "", "", ""},
-                new String[] {"TI", "8003", "Pedro", "", "", "", "", "Prejardin", "A", "", "", ""},
-                new String[] {"TI", "8001", "Repetido", "Rios", "", "", "", "6", "B", "", "", ""},
-                new String[] {"TI", "82820000", "Es el admin", "Gil", "", "", "", "6", "A", "", "", ""});
+                new String[] {"TI", "8001", "Ana", "Rios", "F", "25/03/2012", "", "6A", "", "", ""},
+                new String[] {"XX", "8002", "Luis", "Gil", "", "", "", "6A", "", "", ""},
+                new String[] {"TI", "8003", "Pedro", "", "", "", "", "PREJARDINA", "", "", ""},
+                new String[] {"TI", "8001", "Repetido", "Rios", "", "", "", "6B", "", "", ""},
+                new String[] {"TI", "82820000", "Es el admin", "Gil", "", "", "", "6A", "", "", ""});
 
         vistaPrevia(colegio, archivo)
                 .andExpect(status().isOk())
@@ -124,35 +129,32 @@ class ImportacionEstudiantesTest extends IntegracionTest {
     }
 
     @Test
-    void importaCreaGruposYLuegoActualiza() throws Exception {
+    void importaYLuegoActualizaEInactivaALosQueNoVienen() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "imp-ok", "83830000");
 
         byte[] archivo = excel(
-                new String[] {"TI", "9001", "Ana María", "Ríos", "F", "25/03/2012", "3001112233", "6", "A", "Luz Pérez", "MADRE", "3009998877"},
-                new String[] {"ti", "9002", "Luis", "Gil", "M", "", "", "6°", "a", "", "", ""},
-                new String[] {"RC", "9003", "Sara", "Mesa", "", "", "", "Septimo", "B", "", "", ""});
+                new String[] {"TI", "9001", "Ana María", "Ríos", "F", "25/03/2012", "3001112233", "6A", "Luz Pérez", "MADRE", "3009998877"},
+                new String[] {"ti", "9002", "Luis", "Gil", "M", "", "", "6°A", "", "", ""},
+                new String[] {"RC", "9003", "Sara", "Mesa", "", "", "", "SEPTIMOB", "", "", ""});
 
         JsonNode previa = leer(vistaPrevia(colegio, archivo)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nuevos").value(3))
                 .andExpect(jsonPath("$.actualizados").value(0))
-                .andExpect(jsonPath("$.gruposACrear.length()").value(2))
                 .andReturn());
 
         String token = previa.get("token").asText();
 
         confirmar(colegio, token)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.creados").value(3))
-                .andExpect(jsonPath("$.gruposCreados").value(2));
+                .andExpect(jsonPath("$.creados").value(3));
 
         // un token solo sirve una vez
         confirmar(colegio, token).andExpect(status().isNotFound());
 
         mvc.perform(get("/api/v1/estudiantes").param("texto", "ana maria").header("Authorization", colegio.admin()))
-                .andExpect(jsonPath("$.contenido[0].gradoNombre").value("Sexto"))
-                .andExpect(jsonPath("$.contenido[0].grupoNombre").value("A"));
+                .andExpect(jsonPath("$.contenido[0].grupo").value("6A"));
 
         Integer familiares = OWNER.queryForObject("""
                 SELECT count(*) FROM familiares f JOIN estudiantes e ON e.est_id = f.fam_est_id
@@ -161,13 +163,12 @@ class ImportacionEstudiantesTest extends IntegracionTest {
 
         // segunda carga: Luis cambia de grupo y aparece uno nuevo
         byte[] otroArchivo = excel(
-                new String[] {"TI", "9002", "Luis", "Gil", "M", "", "", "6", "B", "", "", ""},
-                new String[] {"TI", "9004", "Nuevo", "Estudiante", "", "", "", "6", "A", "", "", ""});
+                new String[] {"TI", "9002", "Luis", "Gil", "M", "", "", "6B", "", "", ""},
+                new String[] {"TI", "9004", "Nuevo", "Estudiante", "", "", "", "6A", "", "", ""});
 
         JsonNode segunda = leer(vistaPrevia(colegio, otroArchivo)
                 .andExpect(jsonPath("$.nuevos").value(1))
                 .andExpect(jsonPath("$.actualizados").value(1))
-                .andExpect(jsonPath("$.gruposACrear[0]").value("Sexto B"))
                 .andReturn());
 
         confirmar(colegio, segunda.get("token").asText())
@@ -175,7 +176,20 @@ class ImportacionEstudiantesTest extends IntegracionTest {
                 .andExpect(jsonPath("$.actualizados").value(1));
 
         mvc.perform(get("/api/v1/estudiantes").param("texto", "luis").header("Authorization", colegio.admin()))
-                .andExpect(jsonPath("$.contenido[0].grupoNombre").value("B"));
+                .andExpect(jsonPath("$.contenido[0].grupo").value("6B"));
+
+        // el año siguiente: la lista solo trae a Luis y se pide inactivar a los que no vienen
+        byte[] siguiente = excel(new String[] {"TI", "9002", "Luis", "Gil", "M", "", "", "7B", "", "", ""});
+        JsonNode tercera = leer(vistaPrevia(colegio, siguiente, true)
+                .andExpect(jsonPath("$.actualizados").value(1))
+                .andExpect(jsonPath("$.seInactivan").value(3))
+                .andReturn());
+        confirmar(colegio, tercera.get("token").asText())
+                .andExpect(jsonPath("$.inactivados").value(3));
+
+        mvc.perform(get("/api/v1/estudiantes").header("Authorization", colegio.admin()))
+                .andExpect(jsonPath("$.totalElementos").value(1))
+                .andExpect(jsonPath("$.contenido[0].grupo").value("7B"));
     }
 
     @Test
@@ -184,7 +198,7 @@ class ImportacionEstudiantesTest extends IntegracionTest {
         Colegio a = crearColegioCompleto(mvc, mapper, "imp-token-a", "84840000");
         Colegio b = crearColegioCompleto(mvc, mapper, "imp-token-b", "84840001");
 
-        byte[] archivo = excel(new String[] {"TI", "9101", "Ana", "Rios", "", "", "", "6", "A", "", "", ""});
+        byte[] archivo = excel(new String[] {"TI", "9101", "Ana", "Rios", "", "", "", "6A", "", "", ""});
         String token = leer(vistaPrevia(a, archivo).andReturn()).get("token").asText();
 
         confirmar(b, token).andExpect(status().isNotFound());
@@ -206,7 +220,7 @@ class ImportacionEstudiantesTest extends IntegracionTest {
     void exportarDevuelveUnExcel() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "imp-exportar", "86860000");
-        byte[] archivo = excel(new String[] {"TI", "9201", "Ana", "Rios", "F", "", "", "6", "A", "Luz Rios", "MADRE", "3001112233"});
+        byte[] archivo = excel(new String[] {"TI", "9201", "Ana", "Rios", "F", "", "", "6A", "Luz Rios", "MADRE", "3001112233"});
         String token = leer(vistaPrevia(colegio, archivo).andReturn()).get("token").asText();
         confirmar(colegio, token).andExpect(status().isOk());
 
@@ -214,7 +228,7 @@ class ImportacionEstudiantesTest extends IntegracionTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsByteArray();
 
-        // las mismas columnas de la plantilla: sirve de base para el anio siguiente
+        // las mismas columnas de la plantilla: sirve de base para el siguiente cargue
         try (Workbook libro = new XSSFWorkbook(new ByteArrayInputStream(exportado))) {
             Row encabezado = libro.getSheetAt(0).getRow(0);
             for (int i = 0; i < ENCABEZADO.length; i++) {
@@ -223,8 +237,8 @@ class ImportacionEstudiantesTest extends IntegracionTest {
             Row fila = libro.getSheetAt(0).getRow(1);
             assertThat(fila.getCell(1).getStringCellValue()).isEqualTo("9201");
             assertThat(fila.getCell(4).getStringCellValue()).isEqualTo("F");
-            assertThat(fila.getCell(7).getStringCellValue()).isEqualTo("Sexto");
-            assertThat(fila.getCell(10).getStringCellValue()).isEqualTo("MADRE");
+            assertThat(fila.getCell(7).getStringCellValue()).isEqualTo("6A");
+            assertThat(fila.getCell(9).getStringCellValue()).isEqualTo("MADRE");
         }
 
         // subir el mismo archivo exportado funciona
@@ -237,11 +251,11 @@ class ImportacionEstudiantesTest extends IntegracionTest {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "imp-vacias", "87870000");
 
-        byte[] primero = excel(new String[] {"TI", "9301", "Ana", "Rios", "F", "25/03/2012", "3001112233", "6", "A", "", "", ""});
+        byte[] primero = excel(new String[] {"TI", "9301", "Ana", "Rios", "F", "25/03/2012", "3001112233", "6A", "", "", ""});
         confirmar(colegio, leer(vistaPrevia(colegio, primero).andReturn()).get("token").asText()).andExpect(status().isOk());
 
         // segunda carga sin genero, fecha ni celular
-        byte[] segundo = excel(new String[] {"TI", "9301", "Ana", "Rios", "", "", "", "6", "A", "", "", ""});
+        byte[] segundo = excel(new String[] {"TI", "9301", "Ana", "Rios", "", "", "", "6A", "", "", ""});
         confirmar(colegio, leer(vistaPrevia(colegio, segundo).andReturn()).get("token").asText()).andExpect(status().isOk());
 
         String genero = OWNER.queryForObject("SELECT est_genero FROM estudiantes WHERE est_ins_id = ? AND est_nro_doc = '9301'",

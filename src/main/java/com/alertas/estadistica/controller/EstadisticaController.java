@@ -32,33 +32,40 @@ public class EstadisticaController {
 
     @GetMapping
     public EstadisticasResponse resumen(
-            @RequestParam(required = false) Long anioId,
-            @RequestParam(defaultValue = "false") boolean todos,
+            @RequestParam(required = false) Integer anio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(required = false) Long gradoId,
-            @RequestParam(required = false) Long grupoId,
+            @RequestParam(required = false) String grupo,
+            @RequestParam(required = false) String edad,
             @RequestParam(required = false) Long categoriaId) {
 
-        return estadisticaService.resumen(new FiltroEstadistica(anioId, todos, desde, hasta, gradoId, grupoId, categoriaId));
+        return estadisticaService.resumen(new FiltroEstadistica(anio, desde, hasta, vacioANull(grupo), vacioANull(edad), categoriaId));
     }
 
     @GetMapping("/excel")
     public ResponseEntity<byte[]> excel(
-            @RequestParam(required = false) Long anioId,
-            @RequestParam(defaultValue = "false") boolean todos,
+            @RequestParam(required = false) Integer anio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(required = false) Long gradoId,
-            @RequestParam(required = false) Long grupoId,
+            @RequestParam(required = false) String grupo,
+            @RequestParam(required = false) String edad,
             @RequestParam(required = false) Long categoriaId) {
 
         byte[] contenido = estadisticaService.excel(
-                new FiltroEstadistica(anioId, todos, desde, hasta, gradoId, grupoId, categoriaId));
+                new FiltroEstadistica(anio, desde, hasta, vacioANull(grupo), vacioANull(edad), categoriaId));
 
         return ResponseEntity.ok()
                 .contentType(EXCEL)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"estadisticas.xlsx\"")
                 .body(contenido);
+    }
+
+    private String vacioANull(String texto) {
+
+        if (texto == null || texto.isBlank()) {
+            return null;
+        }
+
+        return texto.trim();
     }
 }

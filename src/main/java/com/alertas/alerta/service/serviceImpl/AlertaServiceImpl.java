@@ -13,8 +13,6 @@ import com.alertas.auth.model.UsuarioAutenticado;
 import com.alertas.categoria.service.CategoriaService;
 import com.alertas.estudiante.dto.EstudianteBasico;
 import com.alertas.estudiante.service.EstudianteService;
-import com.alertas.matricula.model.Matricula;
-import com.alertas.matricula.service.MatriculaService;
 import com.alertas.notificacion.service.NotificacionService;
 import com.alertas.personal.dto.PsicorientadorBasico;
 import com.alertas.personal.service.PersonalService;
@@ -23,6 +21,7 @@ import com.alertas.sms.service.SmsService;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.PageResponse;
 import com.alertas.shared.exception.ApiException;
+import com.alertas.shared.interceptor.TenantContext;
 import jakarta.persistence.EntityManager;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -46,7 +45,6 @@ public class AlertaServiceImpl implements AlertaService {
 
     private final AlertaRepository repository;
     private final EstudianteService estudianteService;
-    private final MatriculaService matriculaService;
     private final CategoriaService categoriaService;
     private final PersonalService personalService;
     private final NotificacionService notificacionService;
@@ -56,7 +54,6 @@ public class AlertaServiceImpl implements AlertaService {
     public AlertaServiceImpl(
             AlertaRepository repository,
             EstudianteService estudianteService,
-            MatriculaService matriculaService,
             CategoriaService categoriaService,
             PersonalService personalService,
             NotificacionService notificacionService,
@@ -65,7 +62,6 @@ public class AlertaServiceImpl implements AlertaService {
 
         this.repository = repository;
         this.estudianteService = estudianteService;
-        this.matriculaService = matriculaService;
         this.categoriaService = categoriaService;
         this.personalService = personalService;
         this.notificacionService = notificacionService;
@@ -147,28 +143,20 @@ public class AlertaServiceImpl implements AlertaService {
         return respuesta;
     }
 
-    // lo comun a las dos: matricula del momento, categoria activa y psicorientador si ya lo tiene
+    // lo comun a las dos: grupo del momento, categoria activa y psicorientador si ya lo tiene
     private Alerta nueva(EstudianteBasico estudiante, Long categoriaId, String origen) {
-
-        Matricula matricula = matriculaService.delAnioActivo(estudiante.id());
-
-        if (matricula == null || Matricula.RETIRADA.equals(matricula.getEstado())) {
-            throw ApiException.conflicto(estudiante.nombres() + " " + estudiante.apellidos()
-                    + " no tiene matricula en el año activo. El administrador debe asignarle un grupo");
-        }
 
         categoriaService.buscarActiva(categoriaId);
 
         Alerta alerta = new Alerta();
-        alerta.setInstitucionId(matricula.getInstitucionId());
+        alerta.setInstitucionId(TenantContext.getInstitucionId());
         alerta.setCodigo(CodigoAleatorio.generar());
         alerta.setEstudianteId(estudiante.id());
         alerta.setOrigen(origen);
         alerta.setReportadaPor(UsuarioAutenticado.actual().id());
         alerta.setCategoriaId(categoriaId);
-        alerta.setAnioId(matricula.getAnioId());
-        alerta.setGrupoId(matricula.getGrupoId());
-        alerta.setMatriculaId(matricula.getId());
+        // el grupo que tiene hoy: el historial no cambia si despues pasa a otro
+        alerta.setGrupo(estudiante.grupo());
         alerta.setEstado(Alerta.PENDIENTE);
 
         // si ya hay un psicorientador atendiendo al estudiante, la alerta nueva le llega a el
@@ -217,8 +205,11 @@ public class AlertaServiceImpl implements AlertaService {
             titulo = "Alerta prioritaria";
         }
 
-        String mensaje = respuesta.estudianteNombres() + " " + respuesta.estudianteApellidos() + " (" + respuesta.gradoNombre()
-                + " " + respuesta.grupoNombre() + ") · " + respuesta.categoria();
+        String mensaje = respuesta.estudianteNombres() + " " + respuesta.estudianteApellidos();
+        if (respuesta.grupo() != null) {
+            mensaje = mensaje + " (" + respuesta.grupo() + ")";
+        }
+        mensaje = mensaje + " · " + respuesta.categoria();
         String enlace = "/atencion/estudiantes/" + respuesta.estudianteCodigo();
 
         if (alerta.getPsicorientadorId() != null) {
@@ -302,8 +293,8 @@ public class AlertaServiceImpl implements AlertaService {
         Object[] nombres = repository.nombresDelDetalle(alerta.getId()).get(0);
 
         String psicorientador = null;
-        if (nombres[6] != null) {
-            psicorientador = nombres[6] + " " + nombres[7];
+        if (nombres[4] != null) {
+            psicorientador = nombres[4] + " " + nombres[5];
         }
 
         String conclusion = null;
@@ -325,13 +316,11 @@ public class AlertaServiceImpl implements AlertaService {
                 alerta.getHorarioSeguro(),
                 alerta.getModalidadPreferida(),
                 alerta.getAutorizaSmsFamiliares(),
+                (String) nombres[6],
+                (String) nombres[7],
                 (String) nombres[8],
-                (String) nombres[9],
-                (String) nombres[10],
                 (String) nombres[1],
-                (String) nombres[2],
-                ((Number) nombres[3]).intValue(),
-                nombres[4] + " " + nombres[5],
+                nombres[2] + " " + nombres[3],
                 psicorientador,
                 conclusion,
                 alerta.getCreadoEn());

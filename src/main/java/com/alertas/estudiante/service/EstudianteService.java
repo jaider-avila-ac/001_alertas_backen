@@ -14,21 +14,18 @@ import java.util.List;
 // estudiantes de la institucion del contexto. afuera siempre se identifican por su codigo
 public interface EstudianteService {
 
-    // filtros opcionales (null = sin filtro). grado y grupo son del anio activo
+    // filtros opcionales (null = sin filtro). grupo es el texto libre; edad es la clave de RangoEdad
     PageResponse<EstudianteFilaResponse> listar(
-            String texto, Long gradoId, Long grupoId, Boolean activo, boolean sinGrupo, int pagina, int tamanio);
+            String texto, String grupo, String edad, Boolean activo, int pagina, int tamanio);
+
+    // los grupos que se han escrito, para los filtros
+    List<String> grupos();
 
     EstudianteDetalleResponse buscar(String codigo);
 
     EstudianteDetalleResponse crear(EstudianteRequest request);
 
     EstudianteDetalleResponse actualizar(String codigo, EstudianteRequest request);
-
-    // matricula en el anio del grupo o lo mueve de grupo (queda el movimiento). si estaba retirado vuelve
-    EstudianteDetalleResponse cambiarGrupo(String codigo, Long grupoId, String motivo);
-
-    // cierra sus matriculas activas como retiradas e inactiva su usuario
-    EstudianteDetalleResponse retirar(String codigo, String motivo);
 
     EstudianteDetalleResponse guardarFamiliares(String codigo, List<FamiliarRequest> familiares);
 
@@ -38,14 +35,10 @@ public interface EstudianteService {
 
     EstudianteDetalleResponse restablecerContrasena(String codigo);
 
+    // inactivar = ya no esta en la institucion (se retiro o se graduo)
     EstudianteDetalleResponse cambiarEstado(String codigo, boolean activo);
 
     int cambiarEstadoMasivo(EstadoMasivoEstudiantesRequest request);
-
-    // al abrir un anio nuevo: los que no tienen matricula en ese anio (se retiraron o se graduaron)
-    long contarSinGrupo(Long anioId);
-
-    int inactivarSinGrupo(Long anioId);
 
     // ---- qr ----
 
@@ -54,7 +47,8 @@ public interface EstudianteService {
     // el qr viejo deja de funcionar
     QrResponse regenerarQr(String codigo);
 
-    List<QrResponse> qrDelGrupo(Long grupoId);
+    // los activos de un grupo; grupo null = todos los activos
+    List<QrResponse> qrDelGrupo(String grupo);
 
     // el docente escanea el qr: devuelve el estudiante para crear la alerta
     EstudianteFilaResponse buscarPorQr(String codigoQr);

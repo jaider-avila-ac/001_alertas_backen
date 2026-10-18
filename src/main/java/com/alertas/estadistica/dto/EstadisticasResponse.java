@@ -2,9 +2,9 @@ package com.alertas.estadistica.dto;
 
 import java.util.List;
 
-// anioId: el anio que se aplico (null si son todos los anios). filtros: las listas para los selectores
+// anio: el que se aplico (null si son todos). filtros: las listas para los selectores
 public record EstadisticasResponse(
-        Long anioId,
+        Integer anio,
         IndicadoresResponse indicadores,
         List<ConteoResponse> porMes,
         List<ConteoResponse> porCategoria,

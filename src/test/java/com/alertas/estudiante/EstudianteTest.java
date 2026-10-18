@@ -41,53 +41,22 @@ class EstudianteTest extends IntegracionTest {
         return leer(mvc.perform(get(ruta).header("Authorization", token)).andExpect(status().isOk()).andReturn());
     }
 
-    private Long idDelGrado(Colegio colegio, String nombre) throws Exception {
-
-        for (JsonNode grado : obtener("/api/v1/grados", colegio.admin())) {
-            if (grado.get("nombre").asText().equals(nombre)) {
-                return grado.get("id").asLong();
-            }
-        }
-        throw new IllegalStateException("no existe el grado " + nombre);
-    }
-
-    private Long idDelAnio(Colegio colegio, int anio) throws Exception {
-
-        for (JsonNode fila : obtener("/api/v1/anios-lectivos", colegio.admin())) {
-            if (fila.get("anio").asInt() == anio) {
-                return fila.get("id").asLong();
-            }
-        }
-        throw new IllegalStateException("no existe el anio " + anio);
-    }
-
-    private Long crearGrupo(Colegio colegio, int anio, String grado, String nombre) throws Exception {
-
-        String body = "{\"anioId\":" + idDelAnio(colegio, anio) + ",\"gradoId\":" + idDelGrado(colegio, grado)
-                + ",\"nombre\":\"" + nombre + "\"}";
-        JsonNode grupo = leer(mvc.perform(post("/api/v1/grupos").header("Authorization", colegio.admin())
-                        .header("Idempotency-Key", UUID.randomUUID().toString())
-                        .contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isCreated()).andReturn());
-        return grupo.get("id").asLong();
-    }
-
-    private ResultActions crearEstudiante(Colegio colegio, String documento, String nombres, Long grupoId) throws Exception {
+    private ResultActions crearEstudiante(Colegio colegio, String documento, String nombres, String grupo) throws Exception {
 
         String body = mapper.writeValueAsString(Map.of(
                 "tipoDoc", "TI",
                 "nroDoc", documento,
                 "nombres", nombres,
                 "apellidos", "Pérez",
-                "grupoId", grupoId));
+                "grupo", grupo));
 
         return mvc.perform(post("/api/v1/estudiantes").header("Authorization", colegio.admin())
                 .header("Idempotency-Key", UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
-    private String crearYCodigo(Colegio colegio, String documento, String nombres, Long grupoId) throws Exception {
-        return leer(crearEstudiante(colegio, documento, nombres, grupoId).andExpect(status().isCreated()).andReturn())
+    private String crearYCodigo(Colegio colegio, String documento, String nombres, String grupo) throws Exception {
+        return leer(crearEstudiante(colegio, documento, nombres, grupo).andExpect(status().isCreated()).andReturn())
                 .get("codigo").asText();
     }
 
@@ -101,12 +70,11 @@ class EstudianteTest extends IntegracionTest {
     void crearEstudianteConSuGrupoYSinIds() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "est-crear", "11110000");
-        Long sextoA = crearGrupo(colegio, ESTE_ANIO, "Sexto", "A");
+        String sextoA = "Sexto A";
 
         JsonNode creado = leer(crearEstudiante(colegio, "1001", "José", sextoA)
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.matriculaActual.gradoNombre").value("Sexto"))
-                .andExpect(jsonPath("$.matriculaActual.grupoNombre").value("A"))
+                .andExpect(jsonPath("$.grupo").value("Sexto A"))
                 .andExpect(jsonPath("$.debeCambiarContrasena").value(true))
                 .andReturn());
 
@@ -117,22 +85,21 @@ class EstudianteTest extends IntegracionTest {
         crearEstudiante(colegio, "1001", "Otro", sextoA).andExpect(status().isConflict());
         crearEstudiante(colegio, "11110000", "Otro", sextoA).andExpect(status().isConflict());
 
-        // grupo de otro colegio
-        Colegio otro = crearColegioCompleto(mvc, mapper, "est-crear-otro", "11110001");
-        Long grupoAjeno = crearGrupo(otro, ESTE_ANIO, "Sexto", "A");
-        crearEstudiante(colegio, "1002", "Ana", grupoAjeno).andExpect(status().isNotFound());
+        // el grupo es texto libre, pero sin caracteres raros
+        crearEstudiante(colegio, "1002", "Ana", "<b>6A</b>").andExpect(status().isBadRequest());
+        crearEstudiante(colegio, "1003", "Ana", "Ing. Sistemas - Semestre 3").andExpect(status().isCreated());
     }
 
     @Test
     void laFechaDeNacimientoDebeDarUnaEdadPosible() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "est-nacimiento", "11120000");
-        Long sextoA = crearGrupo(colegio, ESTE_ANIO, "Sexto", "A");
+        String sextoA = "Sexto A";
 
         // 1600, futura o de un bebe: no
         for (String fecha : new String[] {"1600-05-10", LocalDate.now().plusDays(3).toString(), LocalDate.now().minusYears(1).toString()}) {
             String body = mapper.writeValueAsString(Map.of("tipoDoc", "TI", "nroDoc", "1201", "nombres", "Ana",
-                    "apellidos", "Ruiz", "grupoId", sextoA, "fechaNacimiento", fecha));
+                    "apellidos", "Ruiz", "grupo", sextoA, "fechaNacimiento", fecha));
             mvc.perform(post("/api/v1/estudiantes").header("Authorization", colegio.admin())
                             .header("Idempotency-Key", UUID.randomUUID().toString())
                             .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -140,10 +107,10 @@ class EstudianteTest extends IntegracionTest {
                     .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("fecha de nacimiento")));
         }
 
-        // 12 anios: si
+        // 12 anios: si (tambien un adulto, la plataforma sirve para universidades)
         String valida = LocalDate.now().minusYears(12).minusDays(10).toString();
         String body = mapper.writeValueAsString(Map.of("tipoDoc", "TI", "nroDoc", "1201", "nombres", "Ana",
-                "apellidos", "Ruiz", "grupoId", sextoA, "fechaNacimiento", valida));
+                "apellidos", "Ruiz", "grupo", sextoA, "fechaNacimiento", valida));
         mvc.perform(post("/api/v1/estudiantes").header("Authorization", colegio.admin())
                         .header("Idempotency-Key", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(body))
@@ -165,8 +132,8 @@ class EstudianteTest extends IntegracionTest {
     void listarBuscaFiltraYPagina() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "est-listar", "22220000");
-        Long sextoA = crearGrupo(colegio, ESTE_ANIO, "Sexto", "A");
-        Long septimoA = crearGrupo(colegio, ESTE_ANIO, "Septimo", "A");
+        String sextoA = "Sexto A";
+        String septimoA = "Septimo A";
 
         crearYCodigo(colegio, "2001", "José", sextoA);
         crearYCodigo(colegio, "2002", "Ana", sextoA);
@@ -179,10 +146,20 @@ class EstudianteTest extends IntegracionTest {
         // sin tildes y en mayusculas
         mvc.perform(get("/api/v1/estudiantes").param("texto", "JOSE").header("Authorization", colegio.admin()))
                 .andExpect(jsonPath("$.totalElementos").value(1))
-                .andExpect(jsonPath("$.contenido[0].gradoNombre").value("Sexto"));
+                .andExpect(jsonPath("$.contenido[0].grupo").value("Sexto A"));
 
-        mvc.perform(get("/api/v1/estudiantes").param("grupoId", String.valueOf(sextoA)).header("Authorization", colegio.admin()))
+        mvc.perform(get("/api/v1/estudiantes").param("grupo", "sexto a").header("Authorization", colegio.admin()))
                 .andExpect(jsonPath("$.totalElementos").value(2));
+
+        // por rango de edad: ninguno tiene fecha de nacimiento
+        mvc.perform(get("/api/v1/estudiantes").param("edad", "SIN_FECHA").header("Authorization", colegio.admin()))
+                .andExpect(jsonPath("$.totalElementos").value(2));
+        mvc.perform(get("/api/v1/estudiantes").param("edad", "DE_12_A_14").header("Authorization", colegio.admin()))
+                .andExpect(jsonPath("$.totalElementos").value(0));
+
+        // los grupos que se han escrito, para los filtros
+        mvc.perform(get("/api/v1/estudiantes/grupos").header("Authorization", colegio.admin()))
+                .andExpect(jsonPath("$.length()").value(2));
 
         mvc.perform(get("/api/v1/estudiantes").param("estado", "inactivos").header("Authorization", colegio.admin()))
                 .andExpect(jsonPath("$.totalElementos").value(1))
@@ -203,7 +180,7 @@ class EstudianteTest extends IntegracionTest {
     void familiaresMaximoTresYConCelularParaSms() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "est-familia", "33330000");
-        String codigo = crearYCodigo(colegio, "3001", "Ana", crearGrupo(colegio, ESTE_ANIO, "Octavo", "A"));
+        String codigo = crearYCodigo(colegio, "3001", "Ana", "Octavo A");
         String ruta = "/api/v1/estudiantes/" + codigo + "/familiares";
 
         Map<String, Object> madre = Map.of("nombres", "Luz", "parentesco", "MADRE", "celular", "3001234567", "recibeSms", true);
@@ -241,42 +218,24 @@ class EstudianteTest extends IntegracionTest {
     }
 
     @Test
-    void cambiarDeGrupoGuardaElHistorialPorAnio() throws Exception {
+    void cambiarDeGrupoEsEditarElTexto() throws Exception {
 
-        Colegio colegio = crearColegioCompleto(mvc, mapper, "est-historial", "44440000");
-        Long sextoA = crearGrupo(colegio, ESTE_ANIO, "Sexto", "A");
-        Long sextoB = crearGrupo(colegio, ESTE_ANIO, "Sexto", "B");
-        String codigo = crearYCodigo(colegio, "4001", "Ana", sextoA);
+        Colegio colegio = crearColegioCompleto(mvc, mapper, "est-grupo", "44440000");
+        String codigo = crearYCodigo(colegio, "4001", "Ana", "Sexto A");
 
-        mvc.perform(patch("/api/v1/estudiantes/" + codigo + "/grupo").header("Authorization", colegio.admin())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"grupoId\":" + sextoB + "}"))
+        String body = mapper.writeValueAsString(Map.of("tipoDoc", "TI", "nroDoc", "4001", "nombres", "Ana",
+                "apellidos", "Pérez", "grupo", "Septimo A"));
+        mvc.perform(put("/api/v1/estudiantes/" + codigo).header("Authorization", colegio.admin())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.matriculaActual.grupoNombre").value("B"))
-                .andExpect(jsonPath("$.trayectoria.length()").value(1))
-                .andExpect(jsonPath("$.trayectoria[0].movimientos[0].grupoAnterior").value("A"))
-                .andExpect(jsonPath("$.trayectoria[0].movimientos[0].grupoNuevo").value("B"));
-
-        // lo ubica ya en el anio siguiente: su grupo actual no cambia hasta que se active ese anio
-        mvc.perform(post("/api/v1/anios-lectivos").header("Authorization", colegio.admin())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"anio\":" + (ESTE_ANIO + 1) + "}"))
-                .andExpect(status().isCreated());
-        Long septimoA = crearGrupo(colegio, ESTE_ANIO + 1, "Septimo", "A");
-
-        mvc.perform(patch("/api/v1/estudiantes/" + codigo + "/grupo").header("Authorization", colegio.admin())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"grupoId\":" + septimoA + "}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.matriculaActual.grupoNombre").value("B"))
-                .andExpect(jsonPath("$.trayectoria.length()").value(2))
-                .andExpect(jsonPath("$.trayectoria[0].anio").value(ESTE_ANIO + 1))
-                .andExpect(jsonPath("$.trayectoria[0].origen").value("PROMOCION"))
-                .andExpect(jsonPath("$.trayectoria[1].estado").value("PROMOVIDA"));
+                .andExpect(jsonPath("$.grupo").value("Septimo A"));
     }
 
     @Test
     void qrLlevaSoloElCodigoYSePuedeRegenerar() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "est-qr", "55550000");
-        String codigo = crearYCodigo(colegio, "5001", "Ana", crearGrupo(colegio, ESTE_ANIO, "Noveno", "A"));
+        String codigo = crearYCodigo(colegio, "5001", "Ana", "Noveno A");
 
         JsonNode qr = obtener("/api/v1/estudiantes/" + codigo + "/qr", colegio.admin());
         String enlace = qr.get("enlace").asText();
@@ -290,7 +249,7 @@ class EstudianteTest extends IntegracionTest {
         mvc.perform(get("/api/v1/estudiantes/por-qr/" + codigoQr).header("Authorization", docente))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.codigo").value(codigo))
-                .andExpect(jsonPath("$.gradoNombre").value("Noveno"));
+                .andExpect(jsonPath("$.grupo").value("Noveno A"));
 
         // un docente de otro colegio no encuentra ese qr
         Colegio otro = crearColegioCompleto(mvc, mapper, "est-qr-otro", "55550001");
@@ -311,11 +270,11 @@ class EstudianteTest extends IntegracionTest {
     }
 
     @Test
-    void inactivarPorGrupoYLosQueQuedaronSinGrupo() throws Exception {
+    void inactivarPorGrupoOPorSeleccion() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "est-masivo", "66660000");
-        Long decimoA = crearGrupo(colegio, ESTE_ANIO, "Decimo", "A");
-        Long onceA = crearGrupo(colegio, ESTE_ANIO, "Once", "A");
+        String decimoA = "Decimo A";
+        String onceA = "Once A";
         String uno = crearYCodigo(colegio, "6001", "Ana", decimoA);
         crearYCodigo(colegio, "6002", "Luis", decimoA);
         crearYCodigo(colegio, "6003", "Pedro", onceA);
@@ -325,7 +284,7 @@ class EstudianteTest extends IntegracionTest {
         Thread.sleep(5);
 
         mvc.perform(patch("/api/v1/estudiantes/estado-masivo").header("Authorization", colegio.admin())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"grupoId\":" + decimoA + ",\"activo\":false}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"grupo\":\"" + decimoA + "\",\"activo\":false}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.afectados").value(2));
 
@@ -335,32 +294,13 @@ class EstudianteTest extends IntegracionTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"codigos\":[\"" + uno + "\"],\"activo\":true}"))
                 .andExpect(jsonPath("$.afectados").value(1));
 
-        // anio siguiente: solo Ana queda ubicada, los otros activos quedan sin grupo
-        mvc.perform(post("/api/v1/anios-lectivos").header("Authorization", colegio.admin())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"anio\":" + (ESTE_ANIO + 1) + "}"))
-                .andExpect(status().isCreated());
-        Long siguiente = idDelAnio(colegio, ESTE_ANIO + 1);
-        Long onceNuevo = crearGrupo(colegio, ESTE_ANIO + 1, "Once", "A");
-
-        mvc.perform(patch("/api/v1/estudiantes/" + uno + "/grupo").header("Authorization", colegio.admin())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"grupoId\":" + onceNuevo + "}"))
-                .andExpect(status().isOk());
-
-        // Pedro (activo, sin grupo en el anio siguiente). Luis ya estaba inactivo
-        mvc.perform(get("/api/v1/estudiantes/sin-grupo/total").param("anioId", String.valueOf(siguiente))
-                        .header("Authorization", colegio.admin()))
-                .andExpect(jsonPath("$.total").value(1));
-
-        mvc.perform(post("/api/v1/estudiantes/sin-grupo/inactivar").header("Authorization", colegio.admin())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"anioId\":" + siguiente + "}"))
-                .andExpect(jsonPath("$.afectados").value(1));
     }
 
     @Test
     void elEstudianteVeSuNombreEnElPerfil() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "est-perfil", "77770000");
-        crearYCodigo(colegio, "7001", "Valentina", crearGrupo(colegio, ESTE_ANIO, "Quinto", "A"));
+        crearYCodigo(colegio, "7001", "Valentina", "Quinto A");
 
         mvc.perform(post("/api/v1/public/est-perfil/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"usuario\":\"7001\",\"contrasena\":\"7001\"}"))

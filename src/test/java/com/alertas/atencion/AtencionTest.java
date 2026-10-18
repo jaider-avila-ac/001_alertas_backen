@@ -45,13 +45,13 @@ class AtencionTest extends IntegracionTest {
         return leer(mvc.perform(get(ruta).header("Authorization", token)).andExpect(status().isOk()).andReturn());
     }
 
-    record Escenario(Colegio colegio, Long grupoId, String docente, String psi1, String psi2, Long categoriaId) {
+    record Escenario(Colegio colegio, String grupo, String docente, String psi1, String psi2, Long categoriaId) {
     }
 
     private Escenario escenario(String slug, String documentoAdmin) throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, slug, documentoAdmin);
-        Long grupo = crearGrupo(colegio, "Octavo", "A");
+        String grupo = crearGrupo(colegio, "Octavo", "A");
         String docente = crearPersonal(colegio, documentoAdmin + "2", "Docente", Rol.DOCENTE);
         String psi1 = crearPersonal(colegio, documentoAdmin + "3", "Laura", Rol.PSICORIENTADOR);
         String psi2 = crearPersonal(colegio, documentoAdmin + "4", "Marta", Rol.PSICORIENTADOR);
@@ -59,25 +59,9 @@ class AtencionTest extends IntegracionTest {
         return new Escenario(colegio, grupo, docente, psi1, psi2, categoria);
     }
 
-    private Long crearGrupo(Colegio colegio, String grado, String nombre) throws Exception {
-
-        Long anio = null;
-        for (JsonNode fila : obtener("/api/v1/anios-lectivos", colegio.admin())) {
-            if (fila.get("anio").asInt() == ESTE_ANIO) {
-                anio = fila.get("id").asLong();
-            }
-        }
-        Long gradoId = null;
-        for (JsonNode fila : obtener("/api/v1/grados", colegio.admin())) {
-            if (fila.get("nombre").asText().equals(grado)) {
-                gradoId = fila.get("id").asLong();
-            }
-        }
-        String body = "{\"anioId\":" + anio + ",\"gradoId\":" + gradoId + ",\"nombre\":\"" + nombre + "\"}";
-        return leer(mvc.perform(post("/api/v1/grupos").header("Authorization", colegio.admin())
-                        .header("Idempotency-Key", UUID.randomUUID().toString())
-                        .contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isCreated()).andReturn()).get("id").asLong();
+    // el grupo es texto libre del estudiante
+    private String crearGrupo(Colegio colegio, String grado, String nombre) {
+        return grado + " " + nombre;
     }
 
     private String crearEstudiante(Escenario e, String documento, String nombres) throws Exception {
@@ -87,7 +71,7 @@ class AtencionTest extends IntegracionTest {
         datos.put("nroDoc", documento);
         datos.put("nombres", nombres);
         datos.put("apellidos", "Prueba");
-        datos.put("grupoId", e.grupoId());
+        datos.put("grupo", e.grupo());
         return leer(mvc.perform(post("/api/v1/estudiantes").header("Authorization", e.colegio().admin())
                         .header("Idempotency-Key", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(datos)))

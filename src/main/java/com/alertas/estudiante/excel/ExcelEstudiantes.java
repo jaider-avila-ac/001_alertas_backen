@@ -15,7 +15,6 @@ public final class ExcelEstudiantes {
     public static final String GENERO = "GENERO";
     public static final String FECHA_NACIMIENTO = "FECHA_NACIMIENTO";
     public static final String CELULAR = "CELULAR";
-    public static final String GRADO = "GRADO";
     public static final String GRUPO = "GRUPO";
     public static final String FAMILIAR_NOMBRE = "FAMILIAR_NOMBRE";
     public static final String FAMILIAR_PARENTESCO = "FAMILIAR_PARENTESCO";
@@ -29,11 +28,11 @@ public final class ExcelEstudiantes {
 
     public static final String[] COLUMNAS = {
             TIPO_DOC, NUMERO_DOCUMENTO, NOMBRES, APELLIDOS, GENERO, FECHA_NACIMIENTO, CELULAR,
-            GRADO, GRUPO, FAMILIAR_NOMBRE, FAMILIAR_PARENTESCO, FAMILIAR_CELULAR,
+            GRUPO, FAMILIAR_NOMBRE, FAMILIAR_PARENTESCO, FAMILIAR_CELULAR,
             CORREO, DIRECCION, BARRIO, EPS, RH, CONDICIONES_SALUD
     };
 
-    private static final String[] OBLIGATORIAS = {NUMERO_DOCUMENTO, GRADO};
+    private static final String[] OBLIGATORIAS = {NUMERO_DOCUMENTO};
 
     private static final String[][] INSTRUCCIONES = {
             {"Columna", "Obligatoria", "Que va"},
@@ -44,8 +43,7 @@ public final class ExcelEstudiantes {
             {GENERO, "No", "F, M u O"},
             {FECHA_NACIMIENTO, "No", "dd/mm/aaaa, ej 25/03/2012"},
             {CELULAR, "No", "10 digitos, empieza por 3"},
-            {GRADO, "Si", "Numero o nombre: 6, 6°, Sexto. Transicion = 0"},
-            {GRUPO, "Si", "Como se llama el grupo: A, B, 01... Si no existe en el año se crea"},
+            {GRUPO, "No", "Texto libre para ubicar al estudiante, ej: 6A o Ing. Sistemas - Semestre 3"},
             {FAMILIAR_NOMBRE, "No", "Nombre de un familiar o acudiente"},
             {FAMILIAR_PARENTESCO, "Si hay familiar", "MADRE, PADRE, ACUDIENTE, ABUELO, HERMANO, TIO u OTRO"},
             {FAMILIAR_CELULAR, "No", "10 digitos, empieza por 3. A este numero llegan los SMS"},
@@ -56,10 +54,10 @@ public final class ExcelEstudiantes {
             {RH, "No", "O+, O-, A+, A-, B+, B-, AB+ o AB-"},
             {CONDICIONES_SALUD, "No", "Alergias, enfermedades o medicamentos (maximo 500 letras)"},
             {"", "", ""},
-            {"Ejemplo", "", "TI | 1067123456 | Ana Maria | Rios Perez | F | 25/03/2012 | | 6 | A | Luz Perez | MADRE | 3001234567"},
-            {"Importante", "", "Si el estudiante ya existe (mismo documento) se actualizan sus datos y su grupo. "
+            {"Ejemplo", "", "TI | 1067123456 | Ana Maria | Rios Perez | F | 25/03/2012 | | 6A | Luz Perez | MADRE | 3001234567"},
+            {"Importante", "", "Si el estudiante ya existe (mismo documento) se actualizan sus datos. "
                     + "Una celda vacia no borra lo que ya tenia"},
-            {"Consejo", "", "Para el año siguiente puedes exportar la lista, cambiar grado y grupo y subirla"},
+            {"Cada año", "", "Sube la lista: los nuevos se crean y los demas se actualizan. Si marcas la opcion, los que no vengan en el archivo quedan inactivos"},
     };
 
     private ExcelEstudiantes() {

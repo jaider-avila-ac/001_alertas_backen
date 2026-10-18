@@ -4,14 +4,14 @@ import com.alertas.auth.model.UsuarioAutenticado;
 import com.alertas.estudiante.dto.EstudianteBasico;
 import com.alertas.estudiante.service.EstudianteService;
 import com.alertas.institucion.service.InstitucionService;
-import com.alertas.matricula.model.Matricula;
-import com.alertas.matricula.service.MatriculaService;
 import com.alertas.personal.dto.PsicorientadorBasico;
 import com.alertas.personal.service.PersonalService;
 import com.alertas.shared.CodigoAleatorio;
 import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.PageResponse;
 import com.alertas.shared.exception.ApiException;
+import com.alertas.shared.RangoEdad;
+import com.alertas.shared.validacion.Formato;
 import com.alertas.valoracion.dto.EstudianteValoracionResponse;
 import com.alertas.valoracion.dto.RegistrarValoracionRequest;
 import com.alertas.valoracion.dto.ValoracionResponse;
@@ -39,7 +39,6 @@ public class ValoracionServiceImpl implements ValoracionService {
     private final ValoracionRepository repository;
     private final InstitucionService institucionService;
     private final EstudianteService estudianteService;
-    private final MatriculaService matriculaService;
     private final PersonalService personalService;
     private final EntityManager em;
 
@@ -47,14 +46,12 @@ public class ValoracionServiceImpl implements ValoracionService {
             ValoracionRepository repository,
             InstitucionService institucionService,
             EstudianteService estudianteService,
-            MatriculaService matriculaService,
             PersonalService personalService,
             EntityManager em) {
 
         this.repository = repository;
         this.institucionService = institucionService;
         this.estudianteService = estudianteService;
-        this.matriculaService = matriculaService;
         this.personalService = personalService;
         this.em = em;
     }
@@ -73,7 +70,7 @@ public class ValoracionServiceImpl implements ValoracionService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<EstudianteValoracionResponse> estudiantes(
-            String filtro, String texto, Long gradoId, Long grupoId, int pagina, int tamanio) {
+            String filtro, String texto, String grupo, String edad, int pagina, int tamanio) {
 
         Long institucionId = TenantSupport.requireTenant(em);
         exigirActivas(institucionId);
@@ -89,7 +86,7 @@ public class ValoracionServiceImpl implements ValoracionService {
 
         int dias = institucionService.valoracionesDias(institucionId);
         PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0), limitarTamanio(tamanio));
-        Page<EstudianteValoracionFila> page = repository.estudiantes(filtro, dias, busqueda, gradoId, grupoId, pageRequest);
+        Page<EstudianteValoracionFila> page = repository.estudiantes(filtro, dias, busqueda, Formato.espacios(grupo), RangoEdad.validar(edad), pageRequest);
 
         List<EstudianteValoracionResponse> contenido = new ArrayList<>();
         for (EstudianteValoracionFila fila : page.getContent()) {
@@ -97,8 +94,7 @@ public class ValoracionServiceImpl implements ValoracionService {
                     fila.getCodigo(),
                     fila.getNombres(),
                     fila.getApellidos(),
-                    fila.getGradoNombre(),
-                    fila.getGrupoNombre(),
+                    fila.getGrupo(),
                     fila.getUltima(),
                     fila.getUltimaPor(),
                     Boolean.TRUE.equals(fila.getPorValorar())));
@@ -124,17 +120,10 @@ public class ValoracionServiceImpl implements ValoracionService {
             throw ApiException.conflicto(estudiante.nombreCompleto() + " esta inactivo");
         }
 
-        Matricula matricula = matriculaService.delAnioActivo(estudiante.id());
-        if (matricula == null || Matricula.RETIRADA.equals(matricula.getEstado())) {
-            throw ApiException.conflicto(estudiante.nombreCompleto()
-                    + " no tiene matricula en el año activo. El administrador debe asignarle un grupo");
-        }
-
         Valoracion valoracion = new Valoracion();
         valoracion.setInstitucionId(institucionId);
         valoracion.setCodigo(CodigoAleatorio.generar());
         valoracion.setEstudianteId(estudiante.id());
-        valoracion.setMatriculaId(matricula.getId());
         valoracion.setPsicorientadorId(yo.id());
         valoracion.setObservacion(request.observacion().trim());
         repository.saveAndFlush(valoracion);

@@ -2,5 +2,6 @@ package com.alertas.estudiante.dto;
 
 import java.util.List;
 
-public record ImportacionGuardada(Long anioId, List<FilaImportada> filas) {
+// lo que queda en redis entre la vista previa y la confirmacion
+public record ImportacionGuardada(boolean inactivarAusentes, List<FilaImportada> filas) {
 }

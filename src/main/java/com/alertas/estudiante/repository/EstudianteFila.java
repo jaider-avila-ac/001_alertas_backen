@@ -1,7 +1,8 @@
 package com.alertas.estudiante.repository;
 
-// una fila del listado: el estudiante con su grado y grupo del anio que se consulta.
-// spring llena esta interfaz con los alias de la consulta
+import java.time.LocalDate;
+
+// una fila del listado. spring llena esta interfaz con los alias de la consulta
 public interface EstudianteFila {
 
     String getCodigo();
@@ -16,11 +17,7 @@ public interface EstudianteFila {
 
     Boolean getActivo();
 
-    Long getGrupoId();
+    String getGrupo();
 
-    String getGradoNombre();
-
-    Integer getGradoOrden();
-
-    String getGrupoNombre();
+    LocalDate getFechaNacimiento();
 }

@@ -22,7 +22,7 @@ public interface InstitucionService {
 
     // ---- superadmin: la institucion va por su slug y los administradores por su codigo ----
 
-    // crea la institucion con sus grados, anio lectivo, categorias y primer administrador
+    // crea la institucion con sus categorias y su primer administrador
     CrearInstitucionResponse crear(CrearInstitucionRequest request);
 
     // texto y activa pueden venir null (sin filtro)

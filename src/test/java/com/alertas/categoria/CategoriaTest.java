@@ -88,28 +88,18 @@ class CategoriaTest extends IntegracionTest {
         long categoria = listar(colegio.admin()).get(0).get("id").asLong();
 
         // una alerta de prueba metida directo
-        Long anio = OWNER.queryForObject("SELECT anl_id FROM anios_lectivos WHERE anl_ins_id = ? AND anl_activo",
-                Long.class, colegio.id());
-        Long grado = OWNER.queryForObject("SELECT gra_id FROM grados WHERE gra_ins_id = ? AND gra_orden = 6",
-                Long.class, colegio.id());
-        Long grupo = OWNER.queryForObject("""
-                INSERT INTO grupos (grp_ins_id, grp_anl_id, grp_gra_id, grp_nombre) VALUES (?, ?, ?, 'A') RETURNING grp_id""",
-                Long.class, colegio.id(), anio, grado);
         Long usuario = crearUsuario(colegio.id(), "2401", Rol.ESTUDIANTE, "x", false);
         Long estudiante = OWNER.queryForObject("""
                 INSERT INTO estudiantes (est_ins_id, est_usu_id, est_codigo, est_codigo_qr, est_tipo_doc, est_nro_doc,
                                          est_nombres, est_apellidos)
                 VALUES (?, ?, 'catEst000001', 'catQr0000001', 'TI', '2401', 'Ana', 'Rios') RETURNING est_id""",
                 Long.class, colegio.id(), usuario);
-        Long matricula = OWNER.queryForObject("""
-                INSERT INTO matriculas (mat_ins_id, mat_est_id, mat_anl_id, mat_grp_id) VALUES (?, ?, ?, ?) RETURNING mat_id""",
-                Long.class, colegio.id(), estudiante, anio, grupo);
         Long reporta = idUsuario(colegio.id(), "24240000");
         OWNER.update("""
                 INSERT INTO alertas (ale_ins_id, ale_codigo, ale_est_id, ale_origen, ale_reportada_por, ale_cat_id,
-                                     ale_nivel, ale_descripcion, ale_anl_id, ale_grp_id, ale_mat_id)
-                VALUES (?, 'catAlerta001', ?, 'DOCENTE', ?, ?, 'LEVE', 'Descripcion de prueba', ?, ?, ?)""",
-                colegio.id(), estudiante, reporta, categoria, anio, grupo, matricula);
+                                     ale_nivel, ale_descripcion)
+                VALUES (?, 'catAlerta001', ?, 'DOCENTE', ?, ?, 'LEVE', 'Descripcion de prueba')""",
+                colegio.id(), estudiante, reporta, categoria);
 
         assertThat(listar(colegio.admin()).get(0).get("totalAlertas").asLong()).isEqualTo(1);
 

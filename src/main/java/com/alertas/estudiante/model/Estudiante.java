@@ -75,6 +75,10 @@ public class Estudiante {
     @Column(name = "est_barrio", length = 80)
     private String barrio;
 
+    // texto libre y opcional: "6A", "Ing. Sistemas - Semestre 3"
+    @Column(name = "est_grupo", length = 60)
+    private String grupo;
+
     // salud, para emergencias. solo lo ven el admin y el psicorientador
     @Column(name = "est_eps", length = 80)
     private String eps;

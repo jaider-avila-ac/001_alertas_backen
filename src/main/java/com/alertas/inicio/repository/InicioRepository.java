@@ -8,7 +8,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class InicioRepository {
 
-    private static final String ANIO_ACTIVO = "(SELECT anl_id FROM anios_lectivos WHERE anl_activo)";
     private static final String YO = "(SELECT per_id FROM personal WHERE per_usu_id = CAST(:usuario AS bigint))";
 
     // ---------------------------------------------------------------- admin
@@ -21,7 +20,7 @@ public class InicioRepository {
                 'estados', (SELECT json_build_array(count(*) FILTER (WHERE ale_estado = 'PENDIENTE'),
                                                     count(*) FILTER (WHERE ale_estado = 'EN_PROCESO'),
                                                     count(*) FILTER (WHERE ale_estado = 'COMPLETADA'))
-                            FROM alertas WHERE ale_anl_id = %1$s),
+                            FROM alertas WHERE ale_creado_en >= date_trunc('year', now())),
                 'sinAtender', (SELECT json_build_array(count(DISTINCT ale_est_id),
                                                        count(DISTINCT ale_est_id) FILTER (WHERE ale_prioritaria))
                                FROM alertas WHERE ale_estado IN ('PENDIENTE', 'EN_PROCESO') AND ale_psi_id IS NULL),
@@ -31,7 +30,7 @@ public class InicioRepository {
                                  WHERE ale_creado_en >= date_trunc('month', now()) - interval '5 months'
                                  GROUP BY 1) x)
             ) AS text)
-            """.formatted(ANIO_ACTIVO);
+            """;
 
     // las ultimas alertas del colegio (el admin puede abrir el expediente)
     private static final String ULTIMAS_ALERTAS = """
@@ -40,12 +39,10 @@ public class InicioRepository {
             FROM (SELECT e.est_nombres || ' ' || e.est_apellidos AS nombre,
                          c.cat_nombre AS detalle, a.ale_creado_en AS creado, a.ale_estado AS estado, a.ale_nivel AS nivel,
                          %s AS enlace,
-                         gr.gra_nombre || ' ' || g.grp_nombre AS grupo, a.ale_peligro_inmediato AS peligro
+                         a.ale_grupo AS grupo, a.ale_peligro_inmediato AS peligro
                   FROM alertas a
                   JOIN estudiantes e ON e.est_id = a.ale_est_id
                   JOIN categorias_alerta c ON c.cat_id = a.ale_cat_id
-                  JOIN grupos g ON g.grp_id = a.ale_grp_id
-                  JOIN grados gr ON gr.gra_id = g.grp_gra_id
                   WHERE %s
                   ORDER BY a.ale_creado_en DESC
                   LIMIT 6) x
@@ -70,17 +67,16 @@ public class InicioRepository {
                             FROM alertas WHERE ale_psi_id = %1$s),
                 'porValorar', (SELECT CASE WHEN NOT i.ins_valoraciones_activas THEN NULL ELSE (
                                    SELECT count(*)
-                                   FROM matriculas m
-                                   JOIN estudiantes e ON e.est_id = m.mat_est_id
+                                   FROM estudiantes e
                                    JOIN usuarios u ON u.usu_id = e.est_usu_id
-                                   WHERE m.mat_anl_id = %2$s AND m.mat_estado <> 'RETIRADA' AND u.usu_activo
+                                   WHERE u.usu_activo
                                      AND NOT EXISTS (SELECT 1 FROM valoraciones v
                                                      WHERE v.val_est_id = e.est_id
                                                        AND v.val_creado_en >= now() - make_interval(days => i.ins_valoraciones_dias)))
                                END
                                FROM instituciones i WHERE i.ins_id = tenant_actual())
             ) AS text)
-            """.formatted(YO, ANIO_ACTIVO);
+            """.formatted(YO);
 
     private static final String PROXIMAS_CITAS = """
             SELECT CAST(coalesce(json_agg(json_build_array(nombre, detalle, inicio, estado, enlace) ORDER BY inicio), CAST('[]' AS json)) AS text)

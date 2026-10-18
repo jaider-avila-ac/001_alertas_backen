@@ -7,8 +7,7 @@ public record EstudianteValoracionResponse(
         String codigo,
         String nombres,
         String apellidos,
-        String gradoNombre,
-        String grupoNombre,
+        String grupo,
         Instant ultima,
         String ultimaPor,
         boolean porValorar) {
