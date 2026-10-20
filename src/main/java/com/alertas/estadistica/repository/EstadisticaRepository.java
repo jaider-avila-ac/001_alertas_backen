@@ -62,8 +62,6 @@ public class EstadisticaRepository {
                                  FROM (SELECT categoria, count(*) AS n FROM base GROUP BY categoria) x),
                 'porNivel', (SELECT coalesce(json_agg(json_build_array(nivel, n)), CAST('[]' AS json))
                              FROM (SELECT nivel, count(*) AS n FROM base GROUP BY nivel) x),
-                'porGrupo', (SELECT coalesce(json_agg(json_build_array(grupo, n) ORDER BY n DESC, grupo), CAST('[]' AS json))
-                             FROM (SELECT grupo, count(*) AS n FROM base GROUP BY grupo) x),
                 'porGenero', (SELECT coalesce(json_agg(json_build_array(genero, n)), CAST('[]' AS json))
                               FROM (SELECT genero, count(*) AS n FROM base GROUP BY genero) x),
                 'porEdad', (SELECT coalesce(json_agg(json_build_array(rango, n)), CAST('[]' AS json))

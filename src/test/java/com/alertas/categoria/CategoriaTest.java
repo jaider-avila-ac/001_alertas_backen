@@ -52,7 +52,7 @@ class CategoriaTest extends IntegracionTest {
         JsonNode delOtro = listar(otro.admin());
 
         assertThat(categorias.size()).isEqualTo(10);
-        assertThat(categorias.get(0).get("nombre").asText()).isEqualTo("Asistencia y permanencia escolar");
+        assertThat(categorias.get(0).get("nombre").asText()).isEqualTo("Asistencia escolar");
         for (int i = 0; i < categorias.size(); i++) {
             // la misma fila: mismo id en los dos colegios
             assertThat(categorias.get(i).get("id").asLong()).isEqualTo(delOtro.get(i).get("id").asLong());

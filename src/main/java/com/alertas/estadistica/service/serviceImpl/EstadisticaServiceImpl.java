@@ -94,11 +94,6 @@ public class EstadisticaServiceImpl implements EstadisticaService {
             porCategoria.add(new ConteoResponse(fila.get(0).asText(), fila.get(0).asText(), fila.get(1).asLong()));
         }
 
-        List<ConteoResponse> porGrupo = new ArrayList<>();
-        for (JsonNode fila : alertas.get("porGrupo")) {
-            porGrupo.add(new ConteoResponse(fila.get(0).asText(), fila.get(0).asText(), fila.get(1).asLong()));
-        }
-
         List<PsicorientadorConteoResponse> porPsicorientador = new ArrayList<>();
         for (JsonNode fila : alertas.get("porPsicorientador")) {
             porPsicorientador.add(new PsicorientadorConteoResponse(
@@ -115,7 +110,6 @@ public class EstadisticaServiceImpl implements EstadisticaService {
                 porMes(alertas.get("porMes")),
                 porCategoria,
                 enOrden(alertas.get("porNivel"), NIVELES, true),
-                porGrupo,
                 enOrden(alertas.get("porGenero"), GENEROS, false),
                 porEdad,
                 enOrden(alertas.get("porOrigen"), ORIGENES, false),
@@ -163,7 +157,6 @@ public class EstadisticaServiceImpl implements EstadisticaService {
         hojas.add(hoja("Por mes", "Mes", resumen.porMes()));
         hojas.add(hoja("Por categoria", "Categoria", resumen.porCategoria()));
         hojas.add(hoja("Por nivel", "Nivel", resumen.porNivel()));
-        hojas.add(hoja("Por grupo", "Grupo", resumen.porGrupo()));
         hojas.add(hoja("Por genero", "Genero", resumen.porGenero()));
         hojas.add(hoja("Por edad", "Edad (años)", resumen.porEdad()));
         hojas.add(hoja("Por origen", "Quien la creo", resumen.porOrigen()));

@@ -9,7 +9,6 @@ public record EstadisticasResponse(
         List<ConteoResponse> porMes,
         List<ConteoResponse> porCategoria,
         List<ConteoResponse> porNivel,
-        List<ConteoResponse> porGrupo,
         List<ConteoResponse> porGenero,
         List<ConteoResponse> porEdad,
         List<ConteoResponse> porOrigen,

@@ -177,8 +177,8 @@ class EstadisticaTest extends IntegracionTest {
         assertThat(total(todo.get("porEdad"), "SIN_FECHA")).isEqualTo(-1);
         assertThat(total(todo.get("porOrigen"), "DOCENTE")).isEqualTo(3);
         assertThat(total(todo.get("porOrigen"), "ESTUDIANTE")).isEqualTo(1);
-        assertThat(total(todo.get("porGrupo"), "Sexto A")).isEqualTo(2);
-        assertThat(total(todo.get("porGrupo"), "Sexto B")).isEqualTo(2);
+        // ya no hay estadistica por grupo (el grupo es texto libre)
+        assertThat(todo.has("porGrupo")).isFalse();
         assertThat(todo.get("porCategoria")).hasSize(2);
         assertThat(todo.get("porPsicorientador")).hasSize(1);
         assertThat(todo.get("porPsicorientador").get(0).get("atendidas").asLong()).isEqualTo(2);
@@ -228,7 +228,7 @@ class EstadisticaTest extends IntegracionTest {
         byte[] excel = mvc.perform(get("/api/v1/estadisticas/excel?anio=" + anio).header("Authorization", colegio.admin()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
         try (Workbook libro = new XSSFWorkbook(new ByteArrayInputStream(excel))) {
-            assertThat(libro.getNumberOfSheets()).isEqualTo(9);
+            assertThat(libro.getNumberOfSheets()).isEqualTo(8);
             Sheet resumen = libro.getSheet("Resumen");
             boolean encontrado = false;
             for (Row fila : resumen) {
