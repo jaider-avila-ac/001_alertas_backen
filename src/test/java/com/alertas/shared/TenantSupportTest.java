@@ -3,6 +3,7 @@ package com.alertas.shared;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.alertas.auth.model.Rol;
 import com.alertas.shared.interceptor.TenantContext;
 import com.alertas.soporte.IntegracionTest;
 import jakarta.persistence.EntityManager;
@@ -31,8 +32,8 @@ class TenantSupportTest extends IntegracionTest {
     static void datos() {
         colegioA = crearInstitucion("soporte-a");
         colegioB = crearInstitucion("soporte-b");
-        OWNER.update("INSERT INTO categorias_alerta (cat_ins_id, cat_nombre) VALUES (?, 'Solo de A')", colegioA);
-        OWNER.update("INSERT INTO categorias_alerta (cat_ins_id, cat_nombre) VALUES (?, 'Solo de B')", colegioB);
+        crearUsuario(colegioA, "solo-de-a", Rol.DOCENTE, "x", false);
+        crearUsuario(colegioB, "solo-de-b", Rol.DOCENTE, "x", false);
     }
 
     @AfterEach
@@ -41,8 +42,8 @@ class TenantSupportTest extends IntegracionTest {
     }
 
     @SuppressWarnings("unchecked")
-    private List<String> categorias() {
-        return em.createNativeQuery("SELECT cat_nombre FROM categorias_alerta ORDER BY cat_nombre").getResultList();
+    private List<String> usuarios() {
+        return em.createNativeQuery("SELECT usu_usuario FROM usuarios ORDER BY usu_usuario").getResultList();
     }
 
     @Test
@@ -50,16 +51,16 @@ class TenantSupportTest extends IntegracionTest {
         TenantContext.establecer(colegioA, "soporte-a");
         List<String> deA = tx.execute(s -> {
             TenantSupport.requireTenant(em);
-            return categorias();
+            return usuarios();
         });
-        assertThat(deA).containsExactly("Solo de A");
+        assertThat(deA).containsExactly("solo-de-a");
 
         TenantContext.establecer(colegioB, "soporte-b");
         List<String> deB = tx.execute(s -> {
             TenantSupport.requireTenant(em);
-            return categorias();
+            return usuarios();
         });
-        assertThat(deB).containsExactly("Solo de B");
+        assertThat(deB).containsExactly("solo-de-b");
     }
 
     @Test
@@ -82,11 +83,11 @@ class TenantSupportTest extends IntegracionTest {
         TenantContext.establecer(colegioA, "soporte-a");
         tx.executeWithoutResult(s -> {
             TenantSupport.requireTenant(em);
-            assertThat(categorias()).hasSize(1);
+            assertThat(usuarios()).hasSize(1);
         });
 
         // misma conexion (pool de 1), otra transaccion sin requireTenant: no debe ver nada
-        List<String> despues = tx.execute(s -> categorias());
+        List<String> despues = tx.execute(s -> usuarios());
         assertThat(despues).isEmpty();
     }
 }

@@ -143,10 +143,10 @@ public class AlertaServiceImpl implements AlertaService {
         return respuesta;
     }
 
-    // lo comun a las dos: grupo del momento, categoria activa y psicorientador si ya lo tiene
+    // lo comun a las dos: grupo del momento, categoria del catalogo y psicorientador si ya lo tiene
     private Alerta nueva(EstudianteBasico estudiante, Long categoriaId, String origen) {
 
-        categoriaService.buscarActiva(categoriaId);
+        categoriaService.buscar(categoriaId);
 
         Alerta alerta = new Alerta();
         alerta.setInstitucionId(TenantContext.getInstitucionId());

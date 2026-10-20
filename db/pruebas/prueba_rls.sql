@@ -23,20 +23,17 @@ OVERRIDING SYSTEM VALUE VALUES
 INSERT INTO personal (per_id, per_ins_id, per_usu_id, per_codigo, per_tipo_doc, per_nro_doc, per_nombres, per_apellidos)
 OVERRIDING SYSTEM VALUE VALUES (930001, 900001, 910003, 'perA', 'CC', '2001', 'Ana', 'Gomez');
 
-INSERT INTO categorias_alerta (cat_id, cat_ins_id, cat_nombre) OVERRIDING SYSTEM VALUE VALUES
-    (970001, 900001, 'Convivencia'),
-    (970002, 900002, 'Convivencia');
 INSERT INTO familiares (fam_ins_id, fam_est_id, fam_posicion, fam_nombres, fam_parentesco, fam_celular)
 VALUES (900002, 920002, 1, 'Marta', 'MADRE', '3001234560');
 
 -- 1. restricciones
 DO $$
 BEGIN
-    -- una alerta de A con una categoria de B
+    -- una alerta de A sobre un estudiante de B
     BEGIN
         INSERT INTO alertas (ale_ins_id, ale_codigo, ale_est_id, ale_origen, ale_reportada_por, ale_cat_id, ale_nivel, ale_descripcion)
-        VALUES (900001, 'aleX', 920001, 'DOCENTE', 910004, 970002, 'LEVE', 'Descripcion de prueba de la alerta');
-        RAISE EXCEPTION 'FALLO: se permitio usar una categoria de otra institucion';
+        VALUES (900001, 'aleX', 920002, 'DOCENTE', 910004, (SELECT min(cat_id) FROM categorias_alerta), 'LEVE', 'Descripcion de prueba de la alerta');
+        RAISE EXCEPTION 'FALLO: se permitio usar un estudiante de otra institucion';
     EXCEPTION WHEN foreign_key_violation THEN RAISE NOTICE 'OK  no se mezclan datos de dos instituciones';
     END;
 
@@ -94,7 +91,9 @@ DECLARE
 BEGIN
     ASSERT (SELECT count(*) FROM estudiantes) = 1,                          'FALLO: A deberia ver 1 estudiante';
     ASSERT (SELECT count(*) FROM estudiantes WHERE est_id = 920002) = 0,    'FALLO: A ve un estudiante de B';
-    ASSERT (SELECT count(*) FROM categorias_alerta) = 1,                    'FALLO: A ve categorias de B';
+    ASSERT (SELECT count(*) FROM familiares WHERE fam_ins_id = 900002) = 0, 'FALLO: A ve familiares de B';
+    -- el catalogo de categorias es comun: lo ven todas
+    ASSERT (SELECT count(*) FROM categorias_alerta) = 10,                   'FALLO: el catalogo deberia tener 10 categorias';
     RAISE NOTICE 'OK  A solo ve sus filas';
 
     -- modificar y borrar filas de B: no afecta nada
@@ -109,16 +108,24 @@ BEGIN
 
     -- insertar una fila con el tenant de B
     BEGIN
-        INSERT INTO categorias_alerta (cat_ins_id, cat_nombre) VALUES (900002, 'Intrusa');
+        INSERT INTO familiares (fam_ins_id, fam_est_id, fam_posicion, fam_nombres, fam_parentesco)
+        VALUES (900002, 920002, 2, 'Intruso', 'OTRO');
         RAISE EXCEPTION 'FALLO: A inserto en B';
     EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'OK  A no inserta con el tenant de B';
     END;
 
     -- mover una fila propia a B
     BEGIN
-        UPDATE categorias_alerta SET cat_ins_id = 900002 WHERE cat_id = 970001;
+        UPDATE estudiantes SET est_ins_id = 900002 WHERE est_id = 920001;
         RAISE EXCEPTION 'FALLO: A movio una fila a B';
     EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'OK  A no mueve filas a B';
+    END;
+
+    -- el catalogo de categorias no se toca desde la aplicacion
+    BEGIN
+        INSERT INTO categorias_alerta (cat_nombre) VALUES ('Intrusa');
+        RAISE EXCEPTION 'FALLO: la aplicacion agrego una categoria';
+    EXCEPTION WHEN insufficient_privilege THEN RAISE NOTICE 'OK  catalogo de categorias de solo lectura';
     END;
 
     -- la bitacora no se puede modificar
@@ -133,7 +140,7 @@ END $$;
 -- 3. alertas y citas
 INSERT INTO alertas (ale_ins_id, ale_codigo, ale_est_id, ale_origen, ale_reportada_por, ale_cat_id, ale_nivel,
                      ale_descripcion)
-VALUES (900001, 'aleA', 920001, 'DOCENTE', 910004, 970001, 'CRITICO', 'Descripcion de prueba de la alerta');
+VALUES (900001, 'aleA', 920001, 'DOCENTE', 910004, (SELECT min(cat_id) FROM categorias_alerta), 'CRITICO', 'Descripcion de prueba de la alerta');
 
 DO $$
 BEGIN

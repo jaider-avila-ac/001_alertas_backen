@@ -118,7 +118,7 @@ public class EstadisticaRepository {
                                  UNION
                                  SELECT ale_grupo FROM alertas WHERE ale_grupo IS NOT NULL) x),
                 'categorias', (SELECT coalesce(json_agg(json_build_array(cat_id, cat_nombre) ORDER BY cat_nombre), CAST('[]' AS json))
-                               FROM categorias_alerta WHERE cat_activa)
+                               FROM categorias_alerta)
             ) AS text)
             """.formatted(RangoEdad.SQL_HOY);
 

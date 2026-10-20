@@ -6,6 +6,8 @@ import com.alertas.atencion.dto.EstudianteAtencionResponse;
 import com.alertas.atencion.dto.ExpedienteResponse;
 import com.alertas.atencion.dto.PsicorientadorResponse;
 import com.alertas.atencion.dto.ReasignarRequest;
+import com.alertas.atencion.dto.RemisionRequest;
+import com.alertas.atencion.dto.RemisionResponse;
 import com.alertas.atencion.service.AtencionService;
 import com.alertas.shared.dto.PageResponse;
 import jakarta.validation.Valid;
@@ -62,6 +64,13 @@ public class AtencionController {
     @PreAuthorize("hasAnyRole('PSICORIENTADOR', 'ADMIN')")
     public ExpedienteResponse expediente(@PathVariable String codigo) {
         return atencionService.expediente(codigo);
+    }
+
+    // datos para el pdf de remision a otra entidad. es post porque queda registrado en la bitacora
+    @PostMapping("/estudiantes/{codigo}/remision")
+    @PreAuthorize("hasRole('PSICORIENTADOR')")
+    public RemisionResponse remision(@PathVariable String codigo, @Valid @RequestBody RemisionRequest request) {
+        return atencionService.remision(codigo, request);
     }
 
     @PostMapping("/estudiantes/{codigo}/tomar")

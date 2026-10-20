@@ -1,7 +1,6 @@
 package com.alertas.institucion.service.serviceImpl;
 
 import com.alertas.bitacora.service.BitacoraService;
-import com.alertas.categoria.service.CategoriaService;
 import com.alertas.institucion.dto.CrearInstitucionRequest;
 import com.alertas.institucion.dto.CrearInstitucionResponse;
 import com.alertas.institucion.dto.EstadoInstitucion;
@@ -45,7 +44,6 @@ public class InstitucionServiceImpl implements InstitucionService {
             Set.of("superadmin", "api", "admin", "login", "assets", "static", "public");
 
     private final InstitucionRepository repository;
-    private final CategoriaService categoriaService;
     private final PersonalService personalService;
     private final UsuarioService usuarioService;
     private final BitacoraService bitacoraService;
@@ -55,7 +53,6 @@ public class InstitucionServiceImpl implements InstitucionService {
 
     public InstitucionServiceImpl(
             InstitucionRepository repository,
-            CategoriaService categoriaService,
             PersonalService personalService,
             UsuarioService usuarioService,
             BitacoraService bitacoraService,
@@ -64,7 +61,6 @@ public class InstitucionServiceImpl implements InstitucionService {
             @Value("${app.url-front}") String urlFront) {
 
         this.repository = repository;
-        this.categoriaService = categoriaService;
         this.personalService = personalService;
         this.usuarioService = usuarioService;
         this.bitacoraService = bitacoraService;
@@ -138,7 +134,6 @@ public class InstitucionServiceImpl implements InstitucionService {
         // de aqui en adelante todo se guarda dentro de la institucion nueva
         TenantSupport.usarInstitucion(em, institucion.getId());
 
-        categoriaService.crearPredeterminadas();
         AdministradorResponse administrador = personalService.crearAdministrador(request.administrador());
 
         bitacoraService.registrar("CREAR_INSTITUCION", "institucion", institucion.getId(),

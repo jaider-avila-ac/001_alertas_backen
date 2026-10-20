@@ -165,10 +165,10 @@ class AlertaTest extends IntegracionTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("La fecha del hecho no puede ser futura"));
 
-        // categoria vieja que solo quedo por el historial
-        OWNER.update("UPDATE categorias_alerta SET cat_activa = false WHERE cat_id = ?", e.categoriaId());
-        crear(e.docente(), alerta(e, "LEVE")).andExpect(status().isBadRequest());
-        OWNER.update("UPDATE categorias_alerta SET cat_activa = true WHERE cat_id = ?", e.categoriaId());
+        // una categoria que no esta en el catalogo
+        Map<String, Object> sinCategoria = alerta(e, "LEVE");
+        sinCategoria.put("categoriaId", 999999);
+        crear(e.docente(), sinCategoria).andExpect(status().isNotFound());
 
         // inactivo (ya no esta en la institucion)
         mvc.perform(patch("/api/v1/estudiantes/" + e.estudiante() + "/estado").header("Authorization", e.colegio().admin())

@@ -12,6 +12,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
+// catalogo comun: las mismas 10 categorias para todas las instituciones (no tiene institucion)
 @Entity
 @Table(name = "categorias_alerta")
 @Getter
@@ -24,14 +25,8 @@ public class CategoriaAlerta {
     @Setter(AccessLevel.NONE)
     private Long id;
 
-    @Column(name = "cat_ins_id", nullable = false, updatable = false)
-    private Long institucionId;
-
     @Column(name = "cat_nombre", nullable = false, length = 80)
     private String nombre;
-
-    @Column(name = "cat_activa", nullable = false)
-    private boolean activa = true;
 
     @Column(name = "cat_creado_en", nullable = false, updatable = false)
     @Setter(AccessLevel.NONE)

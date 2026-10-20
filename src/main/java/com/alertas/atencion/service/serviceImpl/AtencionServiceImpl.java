@@ -11,6 +11,8 @@ import com.alertas.atencion.dto.EstudianteAtencionResponse;
 import com.alertas.atencion.dto.ExpedienteResponse;
 import com.alertas.atencion.dto.PsicorientadorResponse;
 import com.alertas.atencion.dto.ReasignarRequest;
+import com.alertas.atencion.dto.RemisionRequest;
+import com.alertas.atencion.dto.RemisionResponse;
 import com.alertas.atencion.dto.SeguimientoResponse;
 import com.alertas.atencion.service.AtencionService;
 import com.alertas.auth.model.Rol;
@@ -180,6 +182,32 @@ public class AtencionServiceImpl implements AtencionService {
         boolean esPsicorientador = UsuarioAutenticado.actual().rol() == Rol.PSICORIENTADOR;
 
         return armarExpediente(estudiante, esPsicorientador);
+    }
+
+    // solo el psicorientador: el pdf lleva las observaciones de las citas
+    @Override
+    @Transactional
+    public RemisionResponse remision(String estudianteCodigo, RemisionRequest request) {
+
+        TenantSupport.requireTenant(em);
+
+        PsicorientadorBasico yo = yo();
+        EstudianteBasico estudiante = estudianteService.basicoPorCodigo(estudianteCodigo);
+        String entidad = Formato.espacios(request.entidad());
+        String motivo = null;
+        if (request.motivo() != null && !request.motivo().isBlank()) {
+            motivo = request.motivo().trim();
+        }
+
+        bitacoraService.registrar("EXPORTAR_REMISION", "estudiante", estudiante.id(), "a " + entidad);
+
+        return new RemisionResponse(
+                entidad,
+                motivo,
+                yo.nombreCompleto(),
+                Instant.now(),
+                estudianteService.buscar(estudianteCodigo),
+                armarExpediente(estudiante, true));
     }
 
     // ---------------------------------------------------------------- cambios en alertas

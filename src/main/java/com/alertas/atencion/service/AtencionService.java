@@ -3,6 +3,8 @@ package com.alertas.atencion.service;
 import com.alertas.atencion.dto.BandejaResponse;
 import com.alertas.atencion.dto.EstudianteAtencionResponse;
 import com.alertas.atencion.dto.ExpedienteResponse;
+import com.alertas.atencion.dto.RemisionRequest;
+import com.alertas.atencion.dto.RemisionResponse;
 import com.alertas.atencion.dto.PsicorientadorResponse;
 import com.alertas.atencion.dto.ReasignarRequest;
 import com.alertas.shared.dto.PageResponse;
@@ -22,6 +24,9 @@ public interface AtencionService {
             String pestana, String nivel, Long categoriaId, String grupo, int pagina, int tamanio);
 
     ExpedienteResponse expediente(String estudianteCodigo);
+
+    // pdf para enviar el caso a otra entidad (policia, icbf, eps...). queda en la bitacora
+    RemisionResponse remision(String estudianteCodigo, RemisionRequest request);
 
     ExpedienteResponse cambiarNivel(String alertaCodigo, String nivel);
 

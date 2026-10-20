@@ -43,7 +43,7 @@ class CategoriaTest extends IntegracionTest {
     }
 
     @Test
-    void todosLosColegiosTienenLasMismasDiez() throws Exception {
+    void todosLosColegiosUsanElMismoCatalogo() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "cat-inicio", "21210000");
         Colegio otro = crearColegioCompleto(mvc, mapper, "cat-inicio-otro", "21210001");
@@ -54,8 +54,9 @@ class CategoriaTest extends IntegracionTest {
         assertThat(categorias.size()).isEqualTo(10);
         assertThat(categorias.get(0).get("nombre").asText()).isEqualTo("Asistencia y permanencia escolar");
         for (int i = 0; i < categorias.size(); i++) {
+            // la misma fila: mismo id en los dos colegios
+            assertThat(categorias.get(i).get("id").asLong()).isEqualTo(delOtro.get(i).get("id").asLong());
             assertThat(categorias.get(i).get("nombre").asText()).isEqualTo(delOtro.get(i).get("nombre").asText());
-            assertThat(categorias.get(i).get("activa").asBoolean()).isTrue();
         }
     }
 
@@ -82,7 +83,7 @@ class CategoriaTest extends IntegracionTest {
     }
 
     @Test
-    void cuentaSusAlertasYUnaViejaNoSeMuestra() throws Exception {
+    void cadaColegioCuentaSoloSusAlertas() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "cat-alertas", "24240000");
         long categoria = listar(colegio.admin()).get(0).get("id").asLong();
@@ -103,9 +104,8 @@ class CategoriaTest extends IntegracionTest {
 
         assertThat(listar(colegio.admin()).get(0).get("totalAlertas").asLong()).isEqualTo(1);
 
-        // una categoria vieja que quedo solo por el historial de sus alertas no se ofrece
-        OWNER.update("INSERT INTO categorias_alerta (cat_ins_id, cat_nombre, cat_activa) VALUES (?, 'Otra', false)",
-                colegio.id());
-        assertThat(listar(colegio.admin()).size()).isEqualTo(10);
+        // la misma categoria en otro colegio no cuenta esa alerta
+        Colegio otro = crearColegioCompleto(mvc, mapper, "cat-alertas-otro", "24240001");
+        assertThat(listar(otro.admin()).get(0).get("totalAlertas").asLong()).isZero();
     }
 }

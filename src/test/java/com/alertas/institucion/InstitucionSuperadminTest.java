@@ -121,8 +121,8 @@ class InstitucionSuperadminTest extends IntegracionTest {
         // el admin no puede cambiar su contrasena, asi que no se le obliga
         assertThat(creada.get("administrador").get("debeCambiarContrasena").asBoolean()).isFalse();
 
-        Integer categorias = OWNER.queryForObject(
-                "SELECT count(*) FROM categorias_alerta WHERE cat_ins_id = ?", Integer.class, id);
+        // las categorias son un catalogo comun: crear una institucion no agrega categorias
+        Integer categorias = OWNER.queryForObject("SELECT count(*) FROM categorias_alerta", Integer.class);
 
         assertThat(categorias).isEqualTo(10);
 

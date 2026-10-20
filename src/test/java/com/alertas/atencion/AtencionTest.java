@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -253,6 +254,36 @@ class AtencionTest extends IntegracionTest {
 
         // el docente no entra a la atencion
         mvc.perform(get("/api/v1/atencion/bandeja").header("Authorization", e.docente())).andExpect(status().isForbidden());
+
+        // remision a otra entidad: datos del estudiante, su familia y todo el seguimiento
+        mvc.perform(put("/api/v1/estudiantes/" + ana + "/familiares").header("Authorization", e.colegio().admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"familiares\":[{\"nombres\":\"Luz\",\"parentesco\":\"MADRE\",\"celular\":\"3004445566\",\"recibeSms\":true}]}"))
+                .andExpect(status().isOk());
+        String remision = "{\"entidad\":\"Comisaria de Familia\",\"motivo\":\"Situacion que supera la orientacion escolar\"}";
+        mvc.perform(post("/api/v1/atencion/estudiantes/" + ana + "/remision").header("Authorization", e.psi2())
+                        .contentType(MediaType.APPLICATION_JSON).content(remision))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entidad").value("Comisaria de Familia"))
+                .andExpect(jsonPath("$.generadaPor").value("Marta Prueba"))
+                .andExpect(jsonPath("$.estudiante.nroDoc").value("4141001"))
+                .andExpect(jsonPath("$.estudiante.grupo").value(e.grupo()))
+                .andExpect(jsonPath("$.estudiante.familiares[0].celular").value("3004445566"))
+                .andExpect(jsonPath("$.expediente.alertas.length()").value(3))
+                .andExpect(jsonPath("$.expediente.citas[0].alertas[0].observacion").value("Se remitio a la EPS"));
+        Integer registros = OWNER.queryForObject(
+                "SELECT count(*) FROM bitacora WHERE bit_ins_id = ? AND bit_accion = 'EXPORTAR_REMISION'", Integer.class, e.colegio().id());
+        assertThat(registros).isEqualTo(1);
+        // lleva observaciones confidenciales: ni el admin ni el docente
+        mvc.perform(post("/api/v1/atencion/estudiantes/" + ana + "/remision").header("Authorization", e.colegio().admin())
+                        .contentType(MediaType.APPLICATION_JSON).content(remision))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/atencion/estudiantes/" + ana + "/remision").header("Authorization", e.docente())
+                        .contentType(MediaType.APPLICATION_JSON).content(remision))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/atencion/estudiantes/" + ana + "/remision").header("Authorization", e.psi1())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"entidad\":\"\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
