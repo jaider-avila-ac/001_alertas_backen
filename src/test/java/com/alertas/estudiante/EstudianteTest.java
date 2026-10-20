@@ -232,6 +232,34 @@ class EstudianteTest extends IntegracionTest {
     }
 
     @Test
+    void qrParaImprimirPorRangoDeEdadYPorPaginas() throws Exception {
+
+        Colegio colegio = crearColegioCompleto(mvc, mapper, "est-qr-edad", "55560000");
+        crearYCodigo(colegio, "5101", "Ana", "Sexto A");
+        crearYCodigo(colegio, "5102", "Beto", "Sexto A");
+        OWNER.update("UPDATE estudiantes SET est_fecha_nacimiento = current_date - interval '13 years' WHERE est_nro_doc = '5101' AND est_ins_id = ?",
+                colegio.id());
+
+        // sin rango salen todos los activos, por paginas (antes fallaba sin grupo)
+        JsonNode todos = obtener("/api/v1/estudiantes/qr", colegio.admin());
+        assertThat(todos.get("contenido")).hasSize(2);
+        assertThat(todos.get("contenido").get(0).get("enlace").asText()).contains("/est-qr-edad/q/");
+
+        JsonNode adolescentes = obtener("/api/v1/estudiantes/qr?edad=DE_12_A_14", colegio.admin());
+        assertThat(adolescentes.get("contenido")).hasSize(1);
+        assertThat(adolescentes.get("contenido").get(0).get("nombres").asText()).isEqualTo("Ana");
+
+        assertThat(obtener("/api/v1/estudiantes/qr?edad=SIN_FECHA", colegio.admin()).get("contenido")).hasSize(1);
+
+        // solo salen los rangos que tienen estudiantes, en orden
+        JsonNode rangos = obtener("/api/v1/estudiantes/qr/rangos", colegio.admin());
+        assertThat(rangos).hasSize(2);
+        assertThat(rangos.get(0).get("clave").asText()).isEqualTo("DE_12_A_14");
+        assertThat(rangos.get(0).get("total").asLong()).isEqualTo(1);
+        assertThat(rangos.get(1).get("clave").asText()).isEqualTo("SIN_FECHA");
+    }
+
+    @Test
     void qrLlevaSoloElCodigoYSePuedeRegenerar() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "est-qr", "55550000");

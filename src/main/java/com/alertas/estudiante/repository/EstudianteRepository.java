@@ -29,10 +29,29 @@ public interface EstudianteRepository extends JpaRepository<Estudiante, Long> {
     @Query("SELECT e FROM Estudiante e JOIN FETCH e.usuario WHERE e.nroDoc IN :documentos")
     List<Estudiante> buscarPorDocumentos(@Param("documentos") Collection<String> documentos);
 
-    // estudiantes activos de un grupo, para imprimir sus qr. grupo null = todos los activos
-    @Query("SELECT e FROM Estudiante e JOIN FETCH e.usuario u WHERE u.activo = true "
-            + "AND (:grupo IS NULL OR lower(e.grupo) = lower(:grupo)) ORDER BY e.grupo, e.apellidos, e.nombres")
-    List<Estudiante> activosDelGrupo(@Param("grupo") String grupo);
+    // estudiantes activos para imprimir sus qr, por paginas. edad null = todos los rangos
+    @Query(value = """
+            SELECT e.* FROM estudiantes e
+            JOIN usuarios u ON u.usu_id = e.est_usu_id
+            WHERE u.usu_activo
+              AND (CAST(:edad AS text) IS NULL OR (""" + RangoEdad.SQL_HOY + """
+            ) = CAST(:edad AS text))
+            ORDER BY e.est_apellidos, e.est_nombres
+            """,
+            countQuery = """
+            SELECT count(*) FROM estudiantes e
+            JOIN usuarios u ON u.usu_id = e.est_usu_id
+            WHERE u.usu_activo
+              AND (CAST(:edad AS text) IS NULL OR (""" + RangoEdad.SQL_HOY + """
+            ) = CAST(:edad AS text))
+            """,
+            nativeQuery = true)
+    Page<Estudiante> activosParaQr(@Param("edad") String edad, Pageable pageable);
+
+    // cuantos activos hay en cada rango de edad: {clave, total}
+    @Query(value = "SELECT (" + RangoEdad.SQL_HOY + ") AS clave, count(*) AS total FROM estudiantes e "
+            + "JOIN usuarios u ON u.usu_id = e.est_usu_id WHERE u.usu_activo GROUP BY 1", nativeQuery = true)
+    List<Object[]> activosPorRango();
 
     // los grupos que se han escrito, para los filtros
     @Query(value = "SELECT DISTINCT e.est_grupo FROM estudiantes e WHERE e.est_grupo IS NOT NULL ORDER BY 1",

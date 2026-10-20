@@ -6,6 +6,7 @@ import com.alertas.estudiante.dto.EstudianteFilaResponse;
 import com.alertas.estudiante.dto.EstudianteRequest;
 import com.alertas.estudiante.dto.FamiliaresRequest;
 import com.alertas.estudiante.dto.QrResponse;
+import com.alertas.estudiante.dto.RangoEdadResponse;
 import com.alertas.estudiante.service.EstudianteService;
 import com.alertas.shared.dto.CambiarActivoRequest;
 import com.alertas.shared.dto.PageResponse;
@@ -142,10 +143,20 @@ public class EstudianteController {
         return estudianteService.regenerarQr(codigo);
     }
 
+    // qr para imprimir, por rango de edad y por paginas
     @GetMapping("/qr")
     @PreAuthorize("hasRole('ADMIN')")
-    public List<QrResponse> qrDelGrupo(@RequestParam(required = false) String grupo) {
-        return estudianteService.qrDelGrupo(grupo);
+    public PageResponse<QrResponse> qrParaImprimir(
+            @RequestParam(required = false) String edad,
+            @RequestParam(defaultValue = "0") int pagina) {
+        return estudianteService.qrParaImprimir(edad, pagina);
+    }
+
+    // los rangos de edad que tienen estudiantes activos, para elegir cuales qr imprimir
+    @GetMapping("/qr/rangos")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<RangoEdadResponse> rangosParaQr() {
+        return estudianteService.rangosConEstudiantes();
     }
 
     // lo que pasa cuando el docente escanea el qr de un estudiante

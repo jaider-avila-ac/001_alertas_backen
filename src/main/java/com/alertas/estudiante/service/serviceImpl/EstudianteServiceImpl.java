@@ -10,6 +10,7 @@ import com.alertas.estudiante.dto.EstudianteRequest;
 import com.alertas.estudiante.dto.FamiliarRequest;
 import com.alertas.estudiante.dto.FamiliarResponse;
 import com.alertas.estudiante.dto.QrResponse;
+import com.alertas.estudiante.dto.RangoEdadResponse;
 import com.alertas.estudiante.model.Estudiante;
 import com.alertas.estudiante.model.Familiar;
 import com.alertas.estudiante.repository.EstudianteFila;
@@ -30,7 +31,9 @@ import com.alertas.usuario.service.UsuarioService;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -41,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class EstudianteServiceImpl implements EstudianteService {
 
     private static final int TAMANIO_MAXIMO = 50;
+    private static final int QR_POR_PAGINA = 24;
 
     private final EstudianteRepository repository;
     private final FamiliarRepository familiarRepository;
@@ -296,14 +300,43 @@ public class EstudianteServiceImpl implements EstudianteService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<QrResponse> qrDelGrupo(String grupo) {
+    public PageResponse<QrResponse> qrParaImprimir(String edad, int pagina) {
 
         TenantSupport.requireTenant(em);
 
-        List<QrResponse> respuesta = new ArrayList<>();
+        // pocos por pagina: cada qr se dibuja en el navegador
+        PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0), QR_POR_PAGINA);
+        Page<Estudiante> page = repository.activosParaQr(RangoEdad.validar(edad), pageRequest);
 
-        for (Estudiante estudiante : repository.activosDelGrupo(Formato.espacios(grupo))) {
-            respuesta.add(armarQr(estudiante));
+        List<QrResponse> contenido = new ArrayList<>();
+
+        for (Estudiante estudiante : page.getContent()) {
+            contenido.add(armarQr(estudiante));
+        }
+
+        return PageResponse.de(contenido, page);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RangoEdadResponse> rangosConEstudiantes() {
+
+        TenantSupport.requireTenant(em);
+
+        Map<String, Long> totales = new HashMap<>();
+        for (Object[] fila : repository.activosPorRango()) {
+            totales.put((String) fila[0], ((Number) fila[1]).longValue());
+        }
+
+        // en el orden de los rangos y al final los que no tienen fecha de nacimiento
+        List<RangoEdadResponse> respuesta = new ArrayList<>();
+        for (String[] rango : RangoEdad.RANGOS) {
+            if (totales.containsKey(rango[0])) {
+                respuesta.add(new RangoEdadResponse(rango[0], rango[1], totales.get(rango[0])));
+            }
+        }
+        if (totales.containsKey(RangoEdad.SIN_FECHA)) {
+            respuesta.add(new RangoEdadResponse(RangoEdad.SIN_FECHA, "Sin fecha de nacimiento", totales.get(RangoEdad.SIN_FECHA)));
         }
 
         return respuesta;

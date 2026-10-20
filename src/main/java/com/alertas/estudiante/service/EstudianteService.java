@@ -7,6 +7,7 @@ import com.alertas.estudiante.dto.EstudianteFilaResponse;
 import com.alertas.estudiante.dto.EstudianteRequest;
 import com.alertas.estudiante.dto.FamiliarRequest;
 import com.alertas.estudiante.dto.QrResponse;
+import com.alertas.estudiante.dto.RangoEdadResponse;
 import com.alertas.shared.dto.NombrePersona;
 import com.alertas.shared.dto.PageResponse;
 import java.util.List;
@@ -47,8 +48,11 @@ public interface EstudianteService {
     // el qr viejo deja de funcionar
     QrResponse regenerarQr(String codigo);
 
-    // los activos de un grupo; grupo null = todos los activos
-    List<QrResponse> qrDelGrupo(String grupo);
+    // qr de los activos para imprimir, por paginas; edad null = todos los rangos
+    PageResponse<QrResponse> qrParaImprimir(String edad, int pagina);
+
+    // los rangos de edad que tienen estudiantes activos, en orden
+    List<RangoEdadResponse> rangosConEstudiantes();
 
     // el docente escanea el qr: devuelve el estudiante para crear la alerta
     EstudianteFilaResponse buscarPorQr(String codigoQr);
