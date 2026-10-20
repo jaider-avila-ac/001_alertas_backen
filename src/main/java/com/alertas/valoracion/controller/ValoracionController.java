@@ -40,12 +40,11 @@ public class ValoracionController {
     public PageResponse<EstudianteValoracionResponse> estudiantes(
             @RequestParam(defaultValue = "POR_VALORAR") String filtro,
             @RequestParam(required = false) String texto,
-            @RequestParam(required = false) String grupo,
             @RequestParam(required = false) String edad,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamanio) {
 
-        return valoracionService.estudiantes(filtro, texto, grupo, edad, pagina, tamanio);
+        return valoracionService.estudiantes(filtro, texto, edad, pagina, tamanio);
     }
 
     @PostMapping

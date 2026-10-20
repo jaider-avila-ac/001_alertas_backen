@@ -35,11 +35,10 @@ public class EstadisticaController {
             @RequestParam(required = false) Integer anio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(required = false) String grupo,
             @RequestParam(required = false) String edad,
             @RequestParam(required = false) Long categoriaId) {
 
-        return estadisticaService.resumen(new FiltroEstadistica(anio, desde, hasta, vacioANull(grupo), vacioANull(edad), categoriaId));
+        return estadisticaService.resumen(new FiltroEstadistica(anio, desde, hasta, vacioANull(edad), categoriaId));
     }
 
     @GetMapping("/excel")
@@ -47,12 +46,11 @@ public class EstadisticaController {
             @RequestParam(required = false) Integer anio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(required = false) String grupo,
             @RequestParam(required = false) String edad,
             @RequestParam(required = false) Long categoriaId) {
 
         byte[] contenido = estadisticaService.excel(
-                new FiltroEstadistica(anio, desde, hasta, vacioANull(grupo), vacioANull(edad), categoriaId));
+                new FiltroEstadistica(anio, desde, hasta, vacioANull(edad), categoriaId));
 
         return ResponseEntity.ok()
                 .contentType(EXCEL)

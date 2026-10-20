@@ -5,7 +5,6 @@ import java.util.List;
 // lo que el front necesita para armar los filtros: llega en la misma respuesta de las estadisticas
 public record FiltrosDisponiblesResponse(
         List<Integer> anios,
-        List<String> grupos,
         List<Opcion> edades,
         List<Categoria> categorias) {
 

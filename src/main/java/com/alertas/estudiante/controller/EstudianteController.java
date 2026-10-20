@@ -44,7 +44,6 @@ public class EstudianteController {
     @PreAuthorize("hasAnyRole('ADMIN', 'PSICORIENTADOR', 'DOCENTE')")
     public PageResponse<EstudianteFilaResponse> listar(
             @RequestParam(required = false) String texto,
-            @RequestParam(required = false) String grupo,
             @RequestParam(required = false) String edad,
             @RequestParam(defaultValue = "activos") String estado,
             @RequestParam(defaultValue = "0") int pagina,
@@ -58,7 +57,7 @@ public class EstudianteController {
             activo = false;
         }
 
-        return estudianteService.listar(texto, grupo, edad, activo, pagina, tamanio);
+        return estudianteService.listar(texto, edad, activo, pagina, tamanio);
     }
 
     // los grupos que se han escrito, para los filtros

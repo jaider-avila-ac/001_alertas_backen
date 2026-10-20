@@ -11,7 +11,6 @@ import com.alertas.shared.TenantSupport;
 import com.alertas.shared.dto.PageResponse;
 import com.alertas.shared.exception.ApiException;
 import com.alertas.shared.RangoEdad;
-import com.alertas.shared.validacion.Formato;
 import com.alertas.valoracion.dto.EstudianteValoracionResponse;
 import com.alertas.valoracion.dto.RegistrarValoracionRequest;
 import com.alertas.valoracion.dto.ValoracionResponse;
@@ -70,7 +69,7 @@ public class ValoracionServiceImpl implements ValoracionService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<EstudianteValoracionResponse> estudiantes(
-            String filtro, String texto, String grupo, String edad, int pagina, int tamanio) {
+            String filtro, String texto, String edad, int pagina, int tamanio) {
 
         Long institucionId = TenantSupport.requireTenant(em);
         exigirActivas(institucionId);
@@ -86,7 +85,7 @@ public class ValoracionServiceImpl implements ValoracionService {
 
         int dias = institucionService.valoracionesDias(institucionId);
         PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0), limitarTamanio(tamanio));
-        Page<EstudianteValoracionFila> page = repository.estudiantes(filtro, dias, busqueda, Formato.espacios(grupo), RangoEdad.validar(edad), pageRequest);
+        Page<EstudianteValoracionFila> page = repository.estudiantes(filtro, dias, busqueda, RangoEdad.validar(edad), pageRequest);
 
         List<EstudianteValoracionResponse> contenido = new ArrayList<>();
         for (EstudianteValoracionFila fila : page.getContent()) {

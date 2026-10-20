@@ -48,7 +48,6 @@ public class AtencionController {
             @RequestParam(defaultValue = "POR_AGENDAR") String pestana,
             @RequestParam(required = false) String nivel,
             @RequestParam(required = false) Long categoriaId,
-            @RequestParam(required = false) String grupo,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamanio) {
 
@@ -57,7 +56,7 @@ public class AtencionController {
             filtroNivel = nivel;
         }
 
-        return atencionService.misEstudiantes(pestana, filtroNivel, categoriaId, grupo, pagina, tamanio);
+        return atencionService.misEstudiantes(pestana, filtroNivel, categoriaId, pagina, tamanio);
     }
 
     @GetMapping("/estudiantes/{codigo}")

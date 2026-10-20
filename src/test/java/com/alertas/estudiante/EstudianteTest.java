@@ -148,9 +148,6 @@ class EstudianteTest extends IntegracionTest {
                 .andExpect(jsonPath("$.totalElementos").value(1))
                 .andExpect(jsonPath("$.contenido[0].grupo").value("Sexto A"));
 
-        mvc.perform(get("/api/v1/estudiantes").param("grupo", "sexto a").header("Authorization", colegio.admin()))
-                .andExpect(jsonPath("$.totalElementos").value(2));
-
         // por rango de edad: ninguno tiene fecha de nacimiento
         mvc.perform(get("/api/v1/estudiantes").param("edad", "SIN_FECHA").header("Authorization", colegio.admin()))
                 .andExpect(jsonPath("$.totalElementos").value(2));
@@ -298,7 +295,7 @@ class EstudianteTest extends IntegracionTest {
     }
 
     @Test
-    void inactivarPorGrupoOPorSeleccion() throws Exception {
+    void inactivarPorEdadOPorSeleccion() throws Exception {
 
         Colegio colegio = crearColegioCompleto(mvc, mapper, "est-masivo", "66660000");
         String decimoA = "Decimo A";
@@ -307,12 +304,16 @@ class EstudianteTest extends IntegracionTest {
         crearYCodigo(colegio, "6002", "Luis", decimoA);
         crearYCodigo(colegio, "6003", "Pedro", onceA);
 
+        // ana y luis tienen 16; pedro no tiene fecha de nacimiento
+        OWNER.update("UPDATE estudiantes SET est_fecha_nacimiento = current_date - interval '16 years' WHERE est_nro_doc IN ('6001', '6002') AND est_ins_id = ?",
+                colegio.id());
+
         Long usuarioUno = idUsuario(colegio.id(), "6001");
         String tokenUno = token(usuarioUno, colegio.id(), colegio.slug(), Rol.ESTUDIANTE);
         Thread.sleep(5);
 
         mvc.perform(patch("/api/v1/estudiantes/estado-masivo").header("Authorization", colegio.admin())
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"grupo\":\"" + decimoA + "\",\"activo\":false}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"edad\":\"DE_15_A_17\",\"activo\":false}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.afectados").value(2));
 

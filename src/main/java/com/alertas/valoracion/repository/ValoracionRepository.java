@@ -31,7 +31,6 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
             WHERE u.usu_activo
               AND (CAST(:texto AS text) IS NULL
                    OR e.est_busqueda LIKE '%' || lower(f_unaccent(CAST(:texto AS text))) || '%')
-              AND (CAST(:grupo AS text) IS NULL OR lower(e.est_grupo) = lower(CAST(:grupo AS text)))
               AND (CAST(:edad AS text) IS NULL OR (""" + RangoEdad.SQL_HOY + """
             ) = CAST(:edad AS text))
               AND (:filtro = 'TODOS'
@@ -53,7 +52,6 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
             WHERE u.usu_activo
               AND (CAST(:texto AS text) IS NULL
                    OR e.est_busqueda LIKE '%' || lower(f_unaccent(CAST(:texto AS text))) || '%')
-              AND (CAST(:grupo AS text) IS NULL OR lower(e.est_grupo) = lower(CAST(:grupo AS text)))
               AND (CAST(:edad AS text) IS NULL OR (""" + RangoEdad.SQL_HOY + """
             ) = CAST(:edad AS text))
               AND (:filtro = 'TODOS'
@@ -66,7 +64,6 @@ public interface ValoracionRepository extends JpaRepository<Valoracion, Long> {
             @Param("filtro") String filtro,
             @Param("dias") int dias,
             @Param("texto") String texto,
-            @Param("grupo") String grupo,
             @Param("edad") String edad,
             Pageable pageable);
 

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 
 // toda la pagina de estadisticas sale de DOS consultas (mas la que fija el colegio para RLS):
 //  1. alertas: un CTE con las alertas filtradas y de ahi todos los conteos, en un solo json
-//  2. citas, valoraciones y las listas para los filtros (anios, grupos, categorias), en otro json
+//  2. citas, valoraciones y las listas para los filtros (anios, categorias), en otro json
 // solo conteos en la base, nunca se cargan entidades. las fechas van en la zona del colegio.
 // el anio es el del calendario; el grupo de la alerta es el que tenia el estudiante ese dia
 @Repository
@@ -33,7 +33,6 @@ public class EstadisticaRepository {
                 WHERE (CAST(:anio AS integer) IS NULL OR extract(year FROM %1$s) = CAST(:anio AS integer))
                   AND (CAST(:desde AS date) IS NULL OR %1$s >= CAST(:desde AS date))
                   AND (CAST(:hasta AS date) IS NULL OR %1$s <= CAST(:hasta AS date))
-                  AND (CAST(:grupo AS text) IS NULL OR lower(a.ale_grupo) = lower(CAST(:grupo AS text)))
                   AND (CAST(:categoriaId AS bigint) IS NULL OR a.ale_cat_id = CAST(:categoriaId AS bigint))
             ),
             base AS (
@@ -77,7 +76,7 @@ public class EstadisticaRepository {
             ) AS text)
             """.formatted(DIA_ALERTA, RangoEdad.sqlEnFecha("e.est_fecha_nacimiento", DIA_ALERTA));
 
-    // citas y valoraciones no guardan el grupo: se filtran con el grupo y la edad que tiene hoy el estudiante
+    // citas y valoraciones se filtran con la edad que tiene hoy el estudiante
     private static final String CONSULTA_CITAS_Y_FILTROS = """
             SELECT CAST(json_build_object(
                 'citas', (SELECT json_build_array(count(*) FILTER (WHERE c.cit_estado = 'REALIZADA'),
@@ -92,7 +91,6 @@ public class EstadisticaRepository {
                                  OR CAST(c.cit_inicio AT TIME ZONE CAST(:zona AS text) AS date) >= CAST(:desde AS date))
                             AND (CAST(:hasta AS date) IS NULL
                                  OR CAST(c.cit_inicio AT TIME ZONE CAST(:zona AS text) AS date) <= CAST(:hasta AS date))
-                            AND (CAST(:grupo AS text) IS NULL OR lower(e.est_grupo) = lower(CAST(:grupo AS text)))
                             AND (CAST(:edad AS text) IS NULL OR (%1$s) = CAST(:edad AS text))
                             AND (CAST(:categoriaId AS bigint) IS NULL OR EXISTS (
                                   SELECT 1 FROM citas_alertas ca JOIN alertas a ON a.ale_id = ca.cia_ale_id
@@ -106,15 +104,10 @@ public class EstadisticaRepository {
                                         OR CAST(v.val_creado_en AT TIME ZONE CAST(:zona AS text) AS date) >= CAST(:desde AS date))
                                    AND (CAST(:hasta AS date) IS NULL
                                         OR CAST(v.val_creado_en AT TIME ZONE CAST(:zona AS text) AS date) <= CAST(:hasta AS date))
-                                   AND (CAST(:grupo AS text) IS NULL OR lower(e.est_grupo) = lower(CAST(:grupo AS text)))
                                    AND (CAST(:edad AS text) IS NULL OR (%1$s) = CAST(:edad AS text))),
                 'anios', (SELECT coalesce(json_agg(anio ORDER BY anio DESC), CAST('[]' AS json))
                           FROM (SELECT DISTINCT CAST(extract(year FROM ale_creado_en AT TIME ZONE CAST(:zona AS text)) AS integer) AS anio
                                 FROM alertas) x),
-                'grupos', (SELECT coalesce(json_agg(grupo ORDER BY grupo), CAST('[]' AS json))
-                           FROM (SELECT est_grupo AS grupo FROM estudiantes WHERE est_grupo IS NOT NULL
-                                 UNION
-                                 SELECT ale_grupo FROM alertas WHERE ale_grupo IS NOT NULL) x),
                 'categorias', (SELECT coalesce(json_agg(json_build_array(cat_id, cat_nombre) ORDER BY cat_nombre), CAST('[]' AS json))
                                FROM categorias_alerta)
             ) AS text)
@@ -144,7 +137,6 @@ public class EstadisticaRepository {
         query.setParameter("anio", filtro.anio());
         query.setParameter("desde", fecha(filtro.desde()));
         query.setParameter("hasta", fecha(filtro.hasta()));
-        query.setParameter("grupo", filtro.grupo());
         query.setParameter("edad", filtro.edad());
         query.setParameter("categoriaId", filtro.categoriaId());
         query.setParameter("zona", zona);

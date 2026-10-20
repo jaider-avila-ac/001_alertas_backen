@@ -195,7 +195,6 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
                 OR (:pestana = 'CON_CITA' AND c.cit_psi_id = :psicorientadorId AND c.cit_iniciada_en IS NULL)
                 OR (:pestana = 'EN_CURSO' AND c.cit_psi_id = :psicorientadorId AND c.cit_iniciada_en IS NOT NULL)
                 OR (:pestana = 'HISTORIAL' AND mios.activas = 0))
-              AND (CAST(:grupo AS text) IS NULL OR lower(e.est_grupo) = lower(CAST(:grupo AS text)))
             ORDER BY c.cit_inicio NULLS LAST, mios.prioritaria DESC, mios.nivel_maximo DESC NULLS LAST,
                      e.est_apellidos, e.est_nombres
             """,
@@ -217,7 +216,6 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
                 OR (:pestana = 'CON_CITA' AND c.cit_psi_id = :psicorientadorId AND c.cit_iniciada_en IS NULL)
                 OR (:pestana = 'EN_CURSO' AND c.cit_psi_id = :psicorientadorId AND c.cit_iniciada_en IS NOT NULL)
                 OR (:pestana = 'HISTORIAL' AND mios.activas = 0))
-              AND (CAST(:grupo AS text) IS NULL OR lower(e.est_grupo) = lower(CAST(:grupo AS text)))
             """,
             nativeQuery = true)
     Page<EstudianteAtencionFila> misEstudiantes(
@@ -225,7 +223,6 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
             @Param("pestana") String pestana,
             @Param("nivel") String nivel,
             @Param("categoriaId") Long categoriaId,
-            @Param("grupo") String grupo,
             Pageable pageable);
 
     // todas las alertas del estudiante con los nombres resueltos, de la mas nueva a la mas vieja

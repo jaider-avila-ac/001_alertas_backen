@@ -62,7 +62,6 @@ public class ImportacionEstudiantesController {
     @GetMapping("/exportar")
     public ResponseEntity<byte[]> exportar(
             @RequestParam(required = false) String texto,
-            @RequestParam(required = false) String grupo,
             @RequestParam(required = false) String edad,
             @RequestParam(defaultValue = "activos") String estado) {
 
@@ -74,7 +73,7 @@ public class ImportacionEstudiantesController {
             activo = false;
         }
 
-        return descargar(importacionService.exportar(texto, grupo, edad, activo), "estudiantes.xlsx");
+        return descargar(importacionService.exportar(texto, edad, activo), "estudiantes.xlsx");
     }
 
     private ResponseEntity<byte[]> descargar(byte[] contenido, String nombre) {

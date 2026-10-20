@@ -141,7 +141,7 @@ public class AtencionServiceImpl implements AtencionService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<EstudianteAtencionResponse> misEstudiantes(
-            String pestana, String nivel, Long categoriaId, String grupo, int pagina, int tamanio) {
+            String pestana, String nivel, Long categoriaId, int pagina, int tamanio) {
 
         TenantSupport.requireTenant(em);
 
@@ -152,7 +152,7 @@ public class AtencionServiceImpl implements AtencionService {
         PsicorientadorBasico yo = yo();
         PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0), limitarTamanio(tamanio));
         Page<EstudianteAtencionFila> page = alertaRepository.misEstudiantes(
-                yo.id(), pestana, nivel, categoriaId, Formato.espacios(grupo), pageRequest);
+                yo.id(), pestana, nivel, categoriaId, pageRequest);
 
         List<EstudianteAtencionResponse> contenido = new ArrayList<>();
         for (EstudianteAtencionFila fila : page.getContent()) {

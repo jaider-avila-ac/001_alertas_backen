@@ -67,7 +67,6 @@ public interface EstudianteRepository extends JpaRepository<Estudiante, Long> {
             JOIN usuarios u ON u.usu_id = e.est_usu_id
             WHERE (CAST(:texto AS text) IS NULL
                    OR e.est_busqueda LIKE '%' || lower(f_unaccent(CAST(:texto AS text))) || '%')
-              AND (CAST(:grupo AS text) IS NULL OR lower(e.est_grupo) = lower(CAST(:grupo AS text)))
               AND (CAST(:edad AS text) IS NULL OR (""" + RangoEdad.SQL_HOY + """
             ) = CAST(:edad AS text))
               AND (CAST(:activo AS boolean) IS NULL OR u.usu_activo = CAST(:activo AS boolean))
@@ -79,7 +78,6 @@ public interface EstudianteRepository extends JpaRepository<Estudiante, Long> {
             JOIN usuarios u ON u.usu_id = e.est_usu_id
             WHERE (CAST(:texto AS text) IS NULL
                    OR e.est_busqueda LIKE '%' || lower(f_unaccent(CAST(:texto AS text))) || '%')
-              AND (CAST(:grupo AS text) IS NULL OR lower(e.est_grupo) = lower(CAST(:grupo AS text)))
               AND (CAST(:edad AS text) IS NULL OR (""" + RangoEdad.SQL_HOY + """
             ) = CAST(:edad AS text))
               AND (CAST(:activo AS boolean) IS NULL OR u.usu_activo = CAST(:activo AS boolean))
@@ -87,7 +85,6 @@ public interface EstudianteRepository extends JpaRepository<Estudiante, Long> {
             nativeQuery = true)
     Page<EstudianteFila> buscar(
             @Param("texto") String texto,
-            @Param("grupo") String grupo,
             @Param("edad") String edad,
             @Param("activo") Boolean activo,
             Pageable pageable);
@@ -96,9 +93,6 @@ public interface EstudianteRepository extends JpaRepository<Estudiante, Long> {
 
     @Query("SELECT e.usuario.id FROM Estudiante e WHERE e.codigo IN :codigos")
     List<Long> usuarioIdsPorCodigos(@Param("codigos") Collection<String> codigos);
-
-    @Query("SELECT e.usuario.id FROM Estudiante e WHERE lower(e.grupo) = lower(:grupo)")
-    List<Long> usuarioIdsPorGrupo(@Param("grupo") String grupo);
 
     @Query(value = "SELECT e.est_usu_id FROM estudiantes e WHERE (" + RangoEdad.SQL_HOY + ") = :edad",
             nativeQuery = true)

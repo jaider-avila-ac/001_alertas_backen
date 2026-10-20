@@ -412,7 +412,7 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
 
     @Override
     @Transactional(readOnly = true)
-    public byte[] exportar(String texto, String grupo, String edad, Boolean activo) {
+    public byte[] exportar(String texto, String edad, Boolean activo) {
 
         TenantSupport.requireTenant(em);
 
@@ -422,7 +422,7 @@ public class ImportacionEstudiantesServiceImpl implements ImportacionEstudiantes
         }
 
         Page<EstudianteFila> page = estudianteRepository.buscar(
-                busqueda, Formato.espacios(grupo), RangoEdad.validar(edad), activo, Pageable.unpaged());
+                busqueda, RangoEdad.validar(edad), activo, Pageable.unpaged());
 
         // mismas columnas de la plantilla (mas el estado): el archivo sirve de base para el siguiente cargue
         String[] columnas = new String[ExcelEstudiantes.COLUMNAS.length + 1];

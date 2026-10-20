@@ -130,7 +130,6 @@ public class EstadisticaServiceImpl implements EstadisticaService {
         filtros.add(new Object[] {"Año", textoFiltro(filtro.anio())});
         filtros.add(new Object[] {"Desde", textoFiltro(filtro.desde())});
         filtros.add(new Object[] {"Hasta", textoFiltro(filtro.hasta())});
-        filtros.add(new Object[] {"Grupo", textoFiltro(filtro.grupo())});
         filtros.add(new Object[] {"Edad", nombreDeEdad(opciones.edades(), filtro.edad())});
         filtros.add(new Object[] {"Categoria", nombreDe(opciones.categorias(), filtro.categoriaId())});
         filtros.add(new Object[] {"", ""});
@@ -200,11 +199,6 @@ public class EstadisticaServiceImpl implements EstadisticaService {
             anios.add(fila.asInt());
         }
 
-        List<String> grupos = new ArrayList<>();
-        for (JsonNode fila : otros.get("grupos")) {
-            grupos.add(fila.asText());
-        }
-
         List<FiltrosDisponiblesResponse.Opcion> edades = new ArrayList<>();
         for (String[] rango : RangoEdad.RANGOS) {
             edades.add(new FiltrosDisponiblesResponse.Opcion(rango[0], rango[1]));
@@ -216,7 +210,7 @@ public class EstadisticaServiceImpl implements EstadisticaService {
             categorias.add(new FiltrosDisponiblesResponse.Categoria(fila.get(0).asLong(), fila.get(1).asText()));
         }
 
-        return new FiltrosDisponiblesResponse(anios, grupos, edades, categorias);
+        return new FiltrosDisponiblesResponse(anios, edades, categorias);
     }
 
     // todos los meses entre el primero y el ultimo, los que no tienen alertas en 0

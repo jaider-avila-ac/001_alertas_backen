@@ -21,7 +21,7 @@ public interface AtencionService {
 
     // pestana: POR_AGENDAR, CON_CITA, POR_CERRAR o HISTORIAL. filtros opcionales
     PageResponse<EstudianteAtencionResponse> misEstudiantes(
-            String pestana, String nivel, Long categoriaId, String grupo, int pagina, int tamanio);
+            String pestana, String nivel, Long categoriaId, int pagina, int tamanio);
 
     ExpedienteResponse expediente(String estudianteCodigo);
 

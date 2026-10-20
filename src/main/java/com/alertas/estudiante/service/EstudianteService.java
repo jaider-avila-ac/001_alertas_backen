@@ -17,7 +17,7 @@ public interface EstudianteService {
 
     // filtros opcionales (null = sin filtro). grupo es el texto libre; edad es la clave de RangoEdad
     PageResponse<EstudianteFilaResponse> listar(
-            String texto, String grupo, String edad, Boolean activo, int pagina, int tamanio);
+            String texto, String edad, Boolean activo, int pagina, int tamanio);
 
     // los grupos que se han escrito, para los filtros
     List<String> grupos();

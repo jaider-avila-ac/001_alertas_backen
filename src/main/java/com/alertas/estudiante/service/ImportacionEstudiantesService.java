@@ -14,5 +14,5 @@ public interface ImportacionEstudiantesService {
     ResultadoImportacionResponse confirmar(String token);
 
     // mismos filtros del listado
-    byte[] exportar(String texto, String grupo, String edad, Boolean activo);
+    byte[] exportar(String texto, String edad, Boolean activo);
 }

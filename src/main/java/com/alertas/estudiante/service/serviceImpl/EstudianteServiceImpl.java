@@ -74,7 +74,7 @@ public class EstudianteServiceImpl implements EstudianteService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<EstudianteFilaResponse> listar(
-            String texto, String grupo, String edad, Boolean activo, int pagina, int tamanio) {
+            String texto, String edad, Boolean activo, int pagina, int tamanio) {
 
         TenantSupport.requireTenant(em);
 
@@ -85,7 +85,7 @@ public class EstudianteServiceImpl implements EstudianteService {
         }
 
         PageRequest pageRequest = PageRequest.of(Math.max(pagina, 0), limitarTamanio(tamanio));
-        Page<EstudianteFila> page = repository.buscar(busqueda, Formato.espacios(grupo), RangoEdad.validar(edad), activo, pageRequest);
+        Page<EstudianteFila> page = repository.buscar(busqueda, RangoEdad.validar(edad), activo, pageRequest);
 
         List<EstudianteFilaResponse> contenido = new ArrayList<>();
 
@@ -260,12 +260,10 @@ public class EstudianteServiceImpl implements EstudianteService {
 
         if (request.codigos() != null && !request.codigos().isEmpty()) {
             usuarioIds = repository.usuarioIdsPorCodigos(request.codigos());
-        } else if (!vacio(request.grupo())) {
-            usuarioIds = repository.usuarioIdsPorGrupo(Formato.espacios(request.grupo()));
         } else if (RangoEdad.validar(request.edad()) != null) {
             usuarioIds = repository.usuarioIdsPorEdad(request.edad());
         } else {
-            throw ApiException.invalido("Selecciona estudiantes, un grupo, un rango de edad o todos");
+            throw ApiException.invalido("Selecciona estudiantes, un rango de edad o todos");
         }
 
         if (usuarioIds.isEmpty()) {

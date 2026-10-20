@@ -184,7 +184,6 @@ class EstadisticaTest extends IntegracionTest {
         assertThat(todo.get("porPsicorientador").get(0).get("atendidas").asLong()).isEqualTo(2);
 
         // filtros
-        assertThat(estadisticas(colegio.admin(), "grupo=" + grupoA).get("indicadores").get("alertas").asLong()).isEqualTo(2);
         // por rango de edad: ana tiene 13
         assertThat(estadisticas(colegio.admin(), "edad=DE_12_A_14").get("indicadores").get("alertas").asLong()).isEqualTo(2);
         assertThat(estadisticas(colegio.admin(), "categoriaId=" + cat1).get("indicadores").get("alertas").asLong()).isEqualTo(2);
@@ -198,20 +197,21 @@ class EstadisticaTest extends IntegracionTest {
         JsonNode sinAnio = estadisticas(colegio.admin(), "");
         assertThat(sinAnio.get("anio").isNull()).isTrue();
         assertThat(sinAnio.get("indicadores").get("alertas").asLong()).isEqualTo(4);
-        assertThat(sinAnio.get("filtros").get("grupos")).hasSize(2);
+        // ya no se filtra por grupo
+        assertThat(sinAnio.get("filtros").has("grupos")).isFalse();
         assertThat(sinAnio.get("filtros").get("categorias").size()).isGreaterThanOrEqualTo(2);
         assertThat(sinAnio.get("filtros").get("edades")).hasSize(7);
         assertThat(sinAnio.get("filtros").get("anios").get(0).asInt()).isEqualTo(anio);
         assertThat(estadisticas(colegio.admin(), "anio=" + (anio - 1)).get("indicadores").get("alertas").asLong()).isZero();
 
         // maximo 3 consultas a la base por peticion (la del colegio para RLS y dos de datos)
-        String conGrupo = "grupo=" + grupoA;
+        String conFiltro = "edad=DE_12_A_14";
         esperarNotificaciones();
         esperarNotificaciones();
         Statistics conteo = sessionFactory.unwrap(SessionFactory.class).getStatistics();
         conteo.setStatisticsEnabled(true);
         conteo.clear();
-        estadisticas(colegio.admin(), conGrupo);
+        estadisticas(colegio.admin(), conFiltro);
         long consultas = conteo.getPrepareStatementCount();
         conteo.setStatisticsEnabled(false);
         assertThat(consultas).isLessThanOrEqualTo(3);
